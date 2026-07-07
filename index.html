@@ -51,6 +51,7 @@
   }
   .cover .ring1{position:absolute; right:-30px; top:-30px; width:140px; height:140px; border-radius:9999px; border:1.5px solid rgba(255,255,255,0.25);}
   .cover .ring2{position:absolute; right:10px; top:30px; width:90px; height:90px; border-radius:9999px; border:1px solid rgba(255,255,255,0.15);}
+  .settings-btn{position:absolute; top:16px; right:16px; background:none; border:none; cursor:pointer; padding:6px; display:flex;}
   .eyebrow{color:rgba(255,255,255,0.65); letter-spacing:0.3em; font-size:11px; position:relative;}
   .cover h1{color:#FFFFFF; font-size:30px; font-weight:700; margin:6px 0 0; position:relative;}
   .balance-label{color:rgba(255,255,255,0.65); font-size:12px; margin:20px 0 2px; position:relative;}
@@ -200,6 +201,24 @@
   }
   .prepaid-row{display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer; font-size:13px; color:var(--ink);}
 
+  /* Settings: category & payment method management */
+  .settings-list{max-height:260px; overflow-y:auto; margin-bottom:12px;}
+  .settings-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--paper-line);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row-icon{color:var(--ink-faint); flex-shrink:0; display:flex;}
+  .settings-name-input{
+    flex:1; min-width:0; border:1px solid transparent; background:none; padding:6px 8px; border-radius:6px;
+    font-size:14px; color:var(--ink); font-family:inherit;
+  }
+  .settings-name-input:focus{border-color:var(--paper-line); background:#fff; outline:none;}
+  .settings-icon-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:4px; flex-shrink:0;}
+  .add-row{display:flex; gap:8px;}
+  .add-row .field{flex:1; margin-bottom:0;}
+  .add-row button{
+    padding:0 16px; border:none; border-radius:8px; background:var(--accent); color:#fff;
+    font-size:13px; font-weight:600; cursor:pointer;
+  }
+
   svg{display:block;}
 </style>
 </head>
@@ -210,24 +229,30 @@
 </div>
 
 <script>
-const EXPENSE_CATS = [
-  {name:"식비", icon:"utensils"},
-  {name:"생활용품", icon:"shopping-bag"},
-  {name:"주거", icon:"home"},
-  {name:"교통", icon:"car"},
-  {name:"여행", icon:"luggage"},
-  {name:"건강", icon:"heart-pulse"},
-  {name:"부모님", icon:"users"},
-  {name:"문화생활", icon:"film"},
-  {name:"경조사", icon:"gift"},
-  {name:"기타", icon:"more-horizontal"},
-];
+function getDefaultExpenseCats(){
+  return [
+    {name:"식비", icon:"utensils"},
+    {name:"생활용품", icon:"shopping-bag"},
+    {name:"주거", icon:"home"},
+    {name:"교통", icon:"car"},
+    {name:"여행", icon:"luggage"},
+    {name:"건강", icon:"heart-pulse"},
+    {name:"부모님", icon:"users"},
+    {name:"문화생활", icon:"film"},
+    {name:"경조사", icon:"gift"},
+    {name:"기타", icon:"more-horizontal"},
+  ];
+}
+function getDefaultPaymentMethods(){
+  return ["현금", "현대카드", "하나카드", "삼성카드"];
+}
 const INCOME_CATS = [
   {name:"급여", icon:"wallet"},
   {name:"부수입", icon:"trending-up"},
   {name:"기타", icon:"more-horizontal"},
 ];
-const PAYMENT_METHODS = ["현금", "현대카드", "하나카드", "삼성카드"];
+let expenseCats = [];
+let paymentMethods = [];
 
 const ICONS = {
   "utensils": '<path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
@@ -251,6 +276,8 @@ const ICONS = {
   "credit-card": '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
   "banknote": '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
   "check": '<polyline points="20 6 9 17 4 12"/>',
+  "tag": '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
+  "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
 };
 function icon(name, size, color){
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size||16}" height="${size||16}" viewBox="0 0 24 24" fill="none" stroke="${color||'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;
@@ -324,6 +351,10 @@ let errorTimer = null;
 let activeTab = "ledger"; // 'ledger' | 'payment'
 let selectedPaymentMethod = null;
 let topTab = "ledger"; // 'ledger' | 'fixed' | 'salary'
+let settingsOpen = false;
+let settingsTab = "category"; // 'category' | 'payment'
+let deleteCategoryTarget = null;
+let deletePaymentTarget = null;
 
 // --- Fixed expenses (고정비) state ---
 let fixedGroups = [];
@@ -407,7 +438,7 @@ function shiftMonth(key, delta){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 function catIcon(type, name){
-  const list = type === 'income' ? INCOME_CATS : EXPENSE_CATS;
+  const list = type === 'income' ? INCOME_CATS : expenseCats;
   const found = list.find(c => c.name === name);
   return found ? found.icon : 'more-horizontal';
 }
@@ -473,6 +504,46 @@ async function persistFixed(){
     showError('저장에 실패했습니다. 다시 시도해 주세요.');
   }
 }
+async function loadCategories(){
+  try{
+    const res = await storageGet('expense-categories');
+    if(res && res.value){
+      expenseCats = JSON.parse(res.value);
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  expenseCats = getDefaultExpenseCats();
+  await persistCategories();
+}
+async function persistCategories(){
+  try{
+    await storageSet('expense-categories', JSON.stringify(expenseCats));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function loadPaymentMethods(){
+  try{
+    const res = await storageGet('payment-methods');
+    if(res && res.value){
+      paymentMethods = JSON.parse(res.value);
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  paymentMethods = getDefaultPaymentMethods();
+  await persistPaymentMethods();
+}
+async function persistPaymentMethods(){
+  try{
+    await storageSet('payment-methods', JSON.stringify(paymentMethods));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
 function showError(msg){
   errorMsg = msg;
   render();
@@ -514,7 +585,7 @@ function computeData(){
     byPayment[key].amount += e.amount;
     byPayment[key].count += 1;
   });
-  const paymentOrder = [...PAYMENT_METHODS, '미지정'];
+  const paymentOrder = [...paymentMethods, '미지정'];
   const paymentBreakdown = paymentOrder
     .filter(name => byPayment[name])
     .map(name => ({name, amount: byPayment[name].amount, count: byPayment[name].count}))
@@ -618,6 +689,93 @@ function switchTab(tab){
 }
 function switchTopTab(tab){
   topTab = tab;
+  render();
+}
+
+// --- Settings: manage expense categories & payment methods ---
+function openSettings(){
+  settingsOpen = true;
+  settingsTab = 'category';
+  render();
+}
+function closeSettings(){
+  settingsOpen = false;
+  render();
+}
+function switchSettingsTab(tab){
+  settingsTab = tab;
+  render();
+}
+
+async function addCategory(){
+  const name = document.getElementById('new-cat-name').value.trim();
+  if(!name){ showError('분류 이름을 입력해 주세요.'); return; }
+  if(expenseCats.some(c => c.name === name)){ showError('이미 있는 분류예요.'); return; }
+  expenseCats.push({name, icon:'tag'});
+  await persistCategories();
+  render();
+}
+async function renameCategory(oldName, newNameRaw){
+  const newName = (newNameRaw || '').trim();
+  if(!newName || newName === oldName){ render(); return; }
+  if(expenseCats.some(c => c.name === newName)){ showError('이미 있는 분류예요.'); render(); return; }
+  const cat = expenseCats.find(c => c.name === oldName);
+  if(!cat){ render(); return; }
+  cat.name = newName;
+  entries.forEach(e => { if(e.type === 'expense' && e.category === oldName) e.category = newName; });
+  await persistCategories();
+  await persist();
+  render();
+}
+function askDeleteCategory(name){
+  deleteCategoryTarget = name;
+  render();
+}
+function cancelDeleteCategory(){
+  deleteCategoryTarget = null;
+  render();
+}
+async function doDeleteCategory(){
+  expenseCats = expenseCats.filter(c => c.name !== deleteCategoryTarget);
+  await persistCategories();
+  deleteCategoryTarget = null;
+  render();
+}
+
+async function addPaymentMethod(){
+  const name = document.getElementById('new-pay-name').value.trim();
+  if(!name){ showError('결제 방식 이름을 입력해 주세요.'); return; }
+  if(paymentMethods.includes(name)){ showError('이미 있는 결제 방식이에요.'); return; }
+  paymentMethods.push(name);
+  await persistPaymentMethods();
+  render();
+}
+async function renamePaymentMethod(oldName, newNameRaw){
+  const newName = (newNameRaw || '').trim();
+  if(!newName || newName === oldName){ render(); return; }
+  if(paymentMethods.includes(newName)){ showError('이미 있는 결제 방식이에요.'); render(); return; }
+  const idx = paymentMethods.indexOf(oldName);
+  if(idx === -1){ render(); return; }
+  paymentMethods[idx] = newName;
+  entries.forEach(e => { if(e.payment === oldName) e.payment = newName; });
+  fixedGroups.forEach(g => g.items.forEach(it => { if(it.payment === oldName) it.payment = newName; }));
+  await persistPaymentMethods();
+  await persist();
+  await persistFixed();
+  render();
+}
+function askDeletePayment(name){
+  deletePaymentTarget = name;
+  render();
+}
+function cancelDeletePayment(){
+  deletePaymentTarget = null;
+  render();
+}
+async function doDeletePayment(){
+  paymentMethods = paymentMethods.filter(p => p !== deletePaymentTarget);
+  await persistPaymentMethods();
+  deletePaymentTarget = null;
   render();
 }
 
@@ -854,8 +1012,7 @@ function renderFixedTab(){
           <input id="fi-payment" list="payment-suggestions" placeholder="지출수단" class="field" value="${escapeHtml(fixedItemForm.payment)}">
         </div>
         <datalist id="payment-suggestions">
-          <option value="현금"><option value="삼성카드"><option value="현대카드"><option value="하나카드">
-          <option value="신한은행"><option value="하나은행"><option value="토스뱅크">
+          ${Array.from(new Set([...paymentMethods, '신한은행','하나은행','토스뱅크'])).map(p=>`<option value="${escapeHtml(p)}">`).join('')}
         </datalist>
         <input id="fi-amount" type="text" inputmode="numeric" placeholder="금액 (원)" class="field mono" value="${fixedItemForm.amount}">
         <div class="prepaid-row" onclick="toggleFixedFormPrepaid()">
@@ -901,7 +1058,7 @@ function renderFixedTab(){
 
 function render(){
   const {monthEntries, monthIncome, monthExpense, totalBalance, catBreakdown, paymentBreakdown} = computeData();
-  const activeCats = form.type === 'income' ? INCOME_CATS : EXPENSE_CATS;
+  const activeCats = form.type === 'income' ? INCOME_CATS : expenseCats;
 
   const rowsHtml = renderRows(monthEntries, '이번 달 기록이 없습니다. 아래 + 버튼으로 첫 기록을 남겨보세요.');
 
@@ -960,6 +1117,7 @@ function render(){
   const ledgerHtml = `
     <div class="cover">
       <div class="ring1"></div><div class="ring2"></div>
+      <button class="settings-btn" onclick="openSettings()">${icon('settings',18,'rgba(255,255,255,0.85)')}</button>
       <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
       <h1 class="serif">가계부</h1>
       <p class="balance-label">총 잔액</p>
@@ -1012,7 +1170,7 @@ function render(){
         ${form.type === 'expense' ? `
         <p class="field-label">결제 방식</p>
         <div class="pay-grid">
-          ${PAYMENT_METHODS.map(p=>{
+          ${paymentMethods.map(p=>{
             const active = form.payment === p;
             return `<div class="pay-opt ${active ? 'active' : ''}" onclick="selectPayment('${p}')">${icon(paymentIcon(p),14)} ${p}</div>`;
           }).join('')}
@@ -1033,6 +1191,68 @@ function render(){
         <div class="confirm-actions">
           <button class="btn-cancel" onclick="cancelDelete()">취소</button>
           <button class="btn-delete" onclick="doDelete()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay ${settingsOpen ? 'open' : ''}" onclick="closeSettings()">
+      <div class="modal" onclick="event.stopPropagation()" style="max-height:78vh; overflow-y:auto;">
+        <div class="modal-head">
+          <h2 class="serif">항목 관리</h2>
+          <button onclick="closeSettings()">${icon('x',20)}</button>
+        </div>
+        <div class="tab-bar" style="padding:0 0 14px;">
+          <button class="tab-btn ${settingsTab==='category' ? 'active' : ''}" onclick="switchSettingsTab('category')">지출 분류</button>
+          <button class="tab-btn ${settingsTab==='payment' ? 'active' : ''}" onclick="switchSettingsTab('payment')">결제 방식</button>
+        </div>
+        ${settingsTab === 'category' ? `
+          <div class="settings-list">
+            ${expenseCats.map(c => `
+              <div class="settings-row">
+                <span class="settings-row-icon">${icon(c.icon,15)}</span>
+                <input type="text" class="settings-name-input" value="${escapeHtml(c.name)}" onchange="renameCategory('${escapeHtml(c.name)}', this.value)">
+                <button class="settings-icon-btn" onclick="askDeleteCategory('${escapeHtml(c.name)}')">${icon('trash-2',14)}</button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="add-row">
+            <input id="new-cat-name" type="text" class="field" placeholder="새 지출 분류 이름">
+            <button onclick="addCategory()">추가</button>
+          </div>
+        ` : `
+          <div class="settings-list">
+            ${paymentMethods.map(p => `
+              <div class="settings-row">
+                <span class="settings-row-icon">${icon(paymentIcon(p),15)}</span>
+                <input type="text" class="settings-name-input" value="${escapeHtml(p)}" onchange="renamePaymentMethod('${escapeHtml(p)}', this.value)">
+                <button class="settings-icon-btn" onclick="askDeletePayment('${escapeHtml(p)}')">${icon('trash-2',14)}</button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="add-row">
+            <input id="new-pay-name" type="text" class="field" placeholder="새 결제 방식 이름">
+            <button onclick="addPaymentMethod()">추가</button>
+          </div>
+        `}
+      </div>
+    </div>
+
+    <div class="overlay center ${deleteCategoryTarget ? 'open' : ''}" onclick="cancelDeleteCategory()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">'${deleteCategoryTarget ? escapeHtml(deleteCategoryTarget) : ''}' 분류를 삭제할까요? 이미 기록된 지출의 분류는 그대로 남아요.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteCategory()">취소</button>
+          <button class="btn-delete" onclick="doDeleteCategory()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${deletePaymentTarget ? 'open' : ''}" onclick="cancelDeletePayment()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">'${deletePaymentTarget ? escapeHtml(deletePaymentTarget) : ''}' 결제 방식을 삭제할까요? 이미 기록된 내역의 결제 방식은 그대로 남아요.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeletePayment()">취소</button>
+          <button class="btn-delete" onclick="doDeletePayment()">삭제</button>
         </div>
       </div>
     </div>
@@ -1087,6 +1307,8 @@ function escapeHtml(str){
 (async function init(){
   await loadEntries();
   await loadFixedGroups();
+  await loadCategories();
+  await loadPaymentMethods();
   render();
 })();
 </script>
