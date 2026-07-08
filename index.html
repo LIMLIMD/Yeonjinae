@@ -3,1313 +3,1023 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>가계부</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Aiden</title>
 <style>
   :root{
-    --paper:#FFFFFF;
-    --paper-line:#E3E6EE;
-    --cover:#1428A0;
-    --cover-light:#2F5FDE;
-    --ink:#1B2233;
-    --ink-faint:#6B7280;
-    --stamp-red:#A8382C;
-    --stamp-green:#2C6E49;
-    --accent:#2F5FDE;
+    --ink:#1B2430;
+    --paper:#F3F6F5;
+    --panel:#FFFFFF;
+    --line:#DDE3E1;
+    --accent:#0F6E5B;
+    --accent-soft:#E4F1EC;
+    --sat:#2B5FAD;
+    --sun:#C0392B;
+    --input-bg:#FFF3D6;
+    --input-bg-hover:#FFE9B3;
+    --plus:#0F6E5B;
+    --minus:#C0392B;
+    --amber:#E08E00;
+    font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',Roboto,'Noto Sans',sans-serif;
   }
   *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--paper);
-    font-family:'Noto Sans KR', sans-serif;
-    color:var(--ink);
-    -webkit-font-smoothing:antialiased;
+  body,#app{margin:0;color:var(--ink);}
+  .mono{font-family:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;font-variant-numeric:tabular-nums;}
+
+  #app{background:var(--paper);padding:20px;min-height:100vh;}
+
+  .header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
+  .header h1{font-size:19px;font-weight:700;letter-spacing:-0.01em;margin:0;}
+  .header .sub{font-size:12px;color:#6b7680;margin-top:2px;}
+
+  .tab-nav{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content;}
+  .tab-btn{border:none;background:none;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:700;color:#7a8389;cursor:pointer;}
+  .tab-btn.active{background:var(--accent);color:#fff;}
+  .tab-btn:hover:not(.active){background:var(--accent-soft);color:var(--accent);}
+
+  .month-nav{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 6px;}
+  .month-nav button{border:none;background:none;font-size:15px;cursor:pointer;color:var(--accent);width:28px;height:28px;border-radius:6px;}
+  .month-nav button:hover{background:var(--accent-soft);}
+  .month-nav .label{font-weight:700;font-size:14px;padding:0 8px;min-width:84px;text-align:center;}
+
+  .top-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start;}
+  @media(max-width:900px){.top-grid{grid-template-columns:1fr;}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#7a8389;margin:0 0 10px 0;font-weight:700;}
+
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);}
+  table{border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px;}
+  thead th{position:sticky;top:0;background:#EEF2F1;border-bottom:1px solid var(--line);padding:8px 6px;font-weight:700;color:#3d474d;white-space:nowrap;text-align:center;}
+  tbody td{padding:5px 6px;border-bottom:1px solid #EDF1EF;text-align:center;white-space:nowrap;}
+  tbody tr:hover{background:#FAFBFA;}
+  tbody tr.weekend-sat .date-cell{color:var(--sat);font-weight:700;}
+  tbody tr.weekend-sun .date-cell{color:var(--sun);font-weight:700;}
+  .date-cell{font-weight:600;}
+
+  select.leave-input, input.time-input{
+    border:1px solid #E8D48A;background:var(--input-bg);border-radius:6px;padding:4px 5px;font-size:12.5px;width:100%;text-align:center;
   }
-  .mono{font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums;}
-  .serif{font-family:'Noto Serif KR', serif;}
-  #app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; padding-bottom:110px;}
+  select.leave-input{width:82px;}
+  input.time-input{width:78px;}
+  input.time-input.invalid{border-color:var(--minus);background:#FFE1E1;}
+  select.leave-input:hover, input.time-input:hover{background:var(--input-bg-hover);}
+  select.leave-input:focus, input.time-input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  input.time-input.live-preview{background:#D6EEF8;color:#98a3ab;border-color:#B9DCEB;}
+  input.time-input.live-preview:hover{background:#c9e6f4;}
 
-  /* Top-level app tabs */
-  .top-tab-bar{
-    display:flex; background:var(--paper); position:sticky; top:0; z-index:30;
-    border-bottom:1px solid var(--paper-line);
-  }
-  .top-tab-btn{
-    flex:1; padding:13px 4px; background:none; border:none; cursor:pointer;
-    font-size:13px; font-weight:500; color:var(--ink-faint);
-    border-bottom:2px solid transparent;
-  }
-  .top-tab-btn.active{color:var(--cover); font-weight:700; border-bottom-color:var(--accent);}
+  .family-cell{background:#D6EEF8 !important;border-radius:4px;font-weight:700;color:#1B6E93;}
+  .family-tag{font-size:9px;background:#D6EEF8;color:#1B6E93;border-radius:4px;padding:1px 4px;font-weight:700;vertical-align:middle;margin-left:2px;}
 
-  /* Cover */
-  .cover{
-    background:linear-gradient(160deg, var(--cover), var(--cover-light));
-    padding:32px 20px 24px;
-    position:relative;
-    overflow:hidden;
-  }
-  .cover .ring1{position:absolute; right:-30px; top:-30px; width:140px; height:140px; border-radius:9999px; border:1.5px solid rgba(255,255,255,0.25);}
-  .cover .ring2{position:absolute; right:10px; top:30px; width:90px; height:90px; border-radius:9999px; border:1px solid rgba(255,255,255,0.15);}
-  .settings-btn{position:absolute; top:16px; right:16px; background:none; border:none; cursor:pointer; padding:6px; display:flex;}
-  .eyebrow{color:rgba(255,255,255,0.65); letter-spacing:0.3em; font-size:11px; position:relative;}
-  .cover h1{color:#FFFFFF; font-size:30px; font-weight:700; margin:6px 0 0; position:relative;}
-  .balance-label{color:rgba(255,255,255,0.65); font-size:12px; margin:20px 0 2px; position:relative;}
-  .balance-value{color:#FFFFFF; font-size:34px; font-weight:600; letter-spacing:-0.02em; margin:0; position:relative;}
-  .balance-value span{font-size:16px; margin-left:4px;}
+  .diff-pos{color:var(--plus);font-weight:700;}
+  .diff-neg{color:var(--minus);font-weight:700;}
+  .muted{color:#b7bec2;}
 
-  /* Month nav */
-  .month-nav{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 20px; border-bottom:1px solid var(--paper-line);
-  }
-  .month-nav button{background:none; border:none; color:var(--ink); cursor:pointer; padding:6px; display:flex;}
-  .month-nav span{font-size:16px; font-weight:700;}
+  tfoot td{padding:8px 6px;font-weight:700;background:#EEF2F1;border-top:1px solid var(--line);text-align:center;white-space:nowrap;}
+  tfoot td.label-cell{text-align:left;}
 
-  /* Summary cards */
-  .summary{display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px 20px;}
-  .card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
-  .card p:first-child{color:var(--ink-faint); font-size:12px; margin:0 0 4px;}
-  .card p:last-child{font-size:18px; font-weight:600; margin:0;}
-  .card.income p:last-child{color:var(--stamp-green);}
-  .card.expense p:last-child{color:var(--stamp-red);}
+  .summary-item{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid #F0F2F1;font-size:13px;}
+  .summary-item:last-child{border-bottom:none;}
+  .summary-item .label{color:#5a6469;}
+  .summary-item .val{font-weight:700;}
 
-  .error-box{margin:0 20px 12px; padding:8px 12px; background:#FDECEA; color:var(--stamp-red); border-radius:8px; font-size:13px;}
+  .balance-wrap{margin-top:10px;}
+  .balance-track{position:relative;height:10px;border-radius:6px;background:#E7ECEA;overflow:hidden;}
+  .balance-fill{position:absolute;top:0;bottom:0;border-radius:6px;transition:width .4s ease;}
+  .balance-fill.pos{background:var(--plus);left:50%;}
+  .balance-fill.neg{background:var(--minus);right:50%;}
+  .balance-center{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:#c7cdcb;}
+  .balance-label{margin-top:6px;font-size:12px;color:#5a6469;display:flex;justify-content:space-between;}
 
-  /* Ledger list */
-  .section-label{color:var(--ink-faint); font-size:12px; margin:0 20px 6px; padding-top:4px;}
-  .ledger{background:#fff; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden; margin:0 20px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
-  .ledger-empty{padding:24px; text-align:center; color:var(--ink-faint); font-size:13px;}
-  .ledger-row{display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px dashed var(--paper-line); cursor:pointer;}
-  .ledger-row:hover{background:#F5F7FC;}
-  .ledger-row:last-child{border-bottom:none;}
-  .cat-icon{
-    width:34px; height:34px; border-radius:9999px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    border:1.5px solid var(--c); color:var(--c);
-  }
-  .row-main{flex:1; min-width:0;}
-  .row-top{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
-  .row-top .cat-name{font-size:14px; font-weight:500;}
-  .row-top .row-date{color:var(--ink-faint); font-size:11px;}
-  .row-memo{color:var(--ink-faint); font-size:12px; margin:1px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .row-amt{text-align:right; flex-shrink:0;}
-  .row-amt p{margin:0;}
-  .row-amt .amt{font-size:14px; font-weight:600;}
-  .row-amt .bal{color:var(--ink-faint); font-size:10px;}
-  .del-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; flex-shrink:0; margin-left:2px; padding:4px;}
+  .legend{font-size:11px;color:#8b9298;margin-top:10px;line-height:1.6;}
+  .legend b{color:#5a6469;}
 
-  /* Tab bar */
-  .tab-bar{display:flex; gap:8px; padding:14px 20px 0;}
-  .tab-btn{
-    flex:1; padding:9px; border-radius:9999px; border:1px solid var(--paper-line);
-    background:#fff; color:var(--ink-faint); font-size:13px; font-weight:500; cursor:pointer;
-  }
-  .tab-btn.active{background:var(--cover); border-color:var(--cover); color:#FFFFFF; font-weight:700;}
+  .save-flag{font-size:11px;color:var(--accent);opacity:0;transition:opacity .3s;}
+  .save-flag.show{opacity:1;}
 
-  /* Category breakdown */
-  .breakdown{padding:20px;}
-  .breakdown-card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
-  .bd-row{margin-bottom:12px;}
-  .bd-row:last-child{margin-bottom:0;}
-  .bd-top{display:flex; justify-content:space-between; margin-bottom:4px;}
-  .bd-top .bd-name{font-size:13px;}
-  .bd-top .bd-val{color:var(--ink-faint); font-size:12px;}
-  .bd-track{background:var(--paper-line); height:6px; border-radius:3px; overflow:hidden;}
-  .bd-fill{background:var(--stamp-red); height:100%;}
-  .payment-row{display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:6px; margin:-6px -6px 6px; border-radius:8px;}
-  .payment-row:hover{background:#F5F7FC;}
-  .payment-row.active{background:#EAF0FE;}
-  .pay-icon{color:var(--stamp-red); flex-shrink:0; margin-top:2px;}
-  .payment-total{
-    display:flex; justify-content:space-between; margin-top:14px; padding-top:12px;
-    border-top:1px solid var(--paper-line); font-size:13px; font-weight:700; color:var(--ink);
-  }
+  .user-chip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:600;}
+  .user-chip button{border:none;background:#EEF2F1;color:#54606a;font-size:11px;font-weight:700;border-radius:6px;padding:5px 8px;cursor:pointer;}
+  .user-chip button:hover{background:#e2e8e6;}
 
-  /* Payment tag on ledger row */
-  .row-payment{
-    color:var(--ink-faint); font-size:10px; border:1px solid var(--paper-line);
-    border-radius:9999px; padding:1px 7px; flex-shrink:0;
-  }
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .login-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:100%;max-width:340px;}
+  .login-card h1{font-size:20px;margin:0 0 4px 0;}
+  .login-card .desc{font-size:12.5px;color:#6b7680;margin-bottom:20px;line-height:1.5;}
+  .login-field{margin-bottom:12px;}
+  .login-field label{display:block;font-size:12px;font-weight:700;color:#54606a;margin-bottom:5px;}
+  .login-field input{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;}
+  .login-field input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .login-btn{width:100%;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:14px;border-radius:8px;padding:11px 0;cursor:pointer;margin-top:6px;}
+  .login-btn:hover{background:#0b5a4a;}
+  .login-btn:disabled{background:#b7c3bf;cursor:default;}
+  .login-error{font-size:12.5px;color:var(--minus);margin-top:10px;min-height:16px;}
+  .login-switch{font-size:12.5px;color:#6b7680;margin-top:14px;text-align:center;}
+  .login-switch a{color:var(--accent);font-weight:700;text-decoration:none;}
+  .login-switch a:hover{text-decoration:underline;}
+  .login-hint{font-size:11px;color:#8b9298;margin-top:16px;line-height:1.6;}
 
-  /* Payment chips in form */
-  .pay-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;}
-  .pay-opt{display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:8px; font-size:13px; background:#fff; border:1px solid var(--paper-line); color:var(--ink); cursor:pointer;}
-  .pay-opt.active{border-color:var(--accent); color:var(--accent); background:#EAF0FE;}
+  .btn-primary{border:none;border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;white-space:nowrap;}
+  .btn-primary:hover{background:#0b5a4a;}
+  .btn-primary:disabled{background:#b7c3bf;cursor:default;}
 
-  /* Floating buttons */
-  .fab-wrap{position:fixed; bottom:20px; right:max(20px, calc(50% - 220px)); display:flex; flex-direction:column; gap:8px; align-items:flex-end; z-index:40;}
-  .fab-income{background:#fff; border:1.5px solid var(--stamp-green); color:var(--stamp-green); border-radius:9999px; padding:8px 16px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);}
-  .fab-expense{background:var(--stamp-red); color:#fff; border:none; border-radius:9999px; padding:12px 20px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 4px 12px rgba(168,56,44,0.35);}
-  .fab-wrap button:active{transform:scale(0.96);}
+  .todo-cat-list{display:flex;flex-direction:column;gap:12px;}
+  .todo-row{display:grid;grid-template-columns:34px 132px 1fr 30px;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid #EEF1F0;}
+  .todo-row:last-child{border-bottom:none;}
+  .todo-row input[type=date]{border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-size:12px;width:100%;color:var(--ink);}
+  .todo-row input[type=text]{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;width:100%;}
+  .todo-row input[type=text]:focus, .todo-row input[type=date]:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .todo-row input.todo-content-input.done{text-decoration:line-through;color:#b7bec2;}
+  .todo-empty{font-size:12.5px;color:#8b9298;padding:10px 2px;}
+  .todo-delete{border:none;background:none;color:#c7cdcb;font-size:16px;cursor:pointer;width:28px;height:28px;border-radius:6px;line-height:1;}
+  .todo-delete:hover{background:#FFE1E1;color:var(--minus);}
 
-  /* Modal */
-  .overlay{position:fixed; inset:0; background:rgba(15,20,15,0.4); z-index:50; display:none; align-items:flex-end; justify-content:center;}
-  .overlay.open{display:flex;}
-  .overlay.center{align-items:center; padding:0 32px;}
-  .modal{width:100%; max-width:480px; background:var(--paper); border-top-left-radius:20px; border-top-right-radius:20px; padding:20px;}
-  .modal-confirm{max-width:360px; background:#fff; border-radius:14px;}
-  .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
-  .modal-head h2{font-size:18px; font-weight:700; margin:0;}
-  .modal-head button{background:none; border:none; color:var(--ink-faint); cursor:pointer;}
-  .cat-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;}
-  .cat-opt{display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; font-size:13px; background:#fff; border:1px solid var(--paper-line); color:var(--ink); cursor:pointer;}
-  .cat-opt.active-expense{border-color:var(--stamp-red); color:var(--stamp-red);}
-  .cat-opt.active-income{border-color:var(--stamp-green); color:var(--stamp-green);}
-  .field{width:100%; padding:10px 12px; margin-bottom:12px; border:1px solid var(--paper-line); border-radius:8px; font-size:14px; font-family:inherit;}
-  .field.mono{font-size:16px;}
-  .field-row{display:flex; gap:8px;}
-  .field-row .field{flex:1; min-width:0;}
-  .field-label{color:var(--ink-faint); font-size:12px; margin:0 0 6px;}
-  .submit-btn{width:100%; padding:14px; border:none; border-radius:9999px; font-size:15px; font-weight:700; color:#fff; cursor:pointer;}
-  .confirm-text{font-size:14px; margin:0 0 16px;}
-  .confirm-actions{display:flex; gap:8px;}
-  .confirm-actions button{flex:1; padding:10px; border-radius:8px; font-size:13px; cursor:pointer;}
-  .btn-cancel{background:#fff; border:1px solid var(--paper-line); color:var(--ink);}
-  .btn-delete{background:var(--stamp-red); border:none; color:#fff;}
-  .loading{display:flex; align-items:center; justify-content:center; min-height:100vh; color:var(--ink-faint); font-size:14px;}
+  .status-toggle{width:26px;height:26px;border-radius:50%;border:2px solid #c7cdcb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:transparent;padding:0;}
+  .status-toggle.status-in_progress{background:var(--amber);border-color:var(--amber);color:#fff;}
+  .status-toggle.status-done{background:var(--accent);border-color:var(--accent);color:#fff;}
 
-  /* Fixed expenses (고정비) */
-  .fixed-card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden; margin-bottom:16px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
-  .fixed-card-head{display:flex; justify-content:space-between; align-items:flex-start; padding:14px 16px; border-bottom:1px solid var(--paper-line); background:#F5F7FC;}
-  .fg-name{font-size:14px; font-weight:700; color:var(--ink); margin:0;}
-  .fg-count{font-size:11px; color:var(--ink-faint); margin:2px 0 0;}
-  .fg-total{font-size:15px; font-weight:700; color:var(--stamp-red); margin:0;}
-  .fg-del-btn{background:none; border:none; color:var(--ink-faint); font-size:11px; text-decoration:underline; cursor:pointer; margin-top:4px; padding:0;}
-  .fixed-row{display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px dashed var(--paper-line); cursor:pointer;}
-  .fixed-row:hover{background:#F5F7FC;}
-  .fixed-row:last-child{border-bottom:none;}
-  .fixed-checkbox{
-    width:20px; height:20px; flex-shrink:0; border-radius:5px; border:1.5px solid var(--paper-line);
-    cursor:pointer; display:flex; align-items:center; justify-content:center; background:#fff;
-  }
-  .fixed-checkbox.checked{background:var(--stamp-green); border-color:var(--stamp-green);}
-  .fixed-main{flex:1; min-width:0;}
-  .fixed-name-row{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
-  .fixed-name{font-size:14px; color:var(--ink); margin:0;}
-  .pay-tag{font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; border:1px solid; white-space:nowrap;}
-  .fixed-meta{color:var(--ink-faint); font-size:11px; margin:2px 0 0;}
-  .fixed-amt{font-size:14px; font-weight:600; color:var(--ink); flex-shrink:0;}
-  .fixed-add-btn{
-    width:100%; padding:12px; background:none; border:none; border-top:1px dashed var(--paper-line);
-    color:var(--ink-faint); font-size:13px; cursor:pointer;
-  }
-  .fixed-add-btn:hover{background:#F5F7FC;}
-  .add-group-btn{
-    width:100%; padding:12px; background:#fff; border:1px dashed var(--paper-line); border-radius:10px;
-    color:var(--ink-faint); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
-  }
-  .prepaid-row{display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer; font-size:13px; color:var(--ink);}
-
-  /* Settings: category & payment method management */
-  .settings-list{max-height:260px; overflow-y:auto; margin-bottom:12px;}
-  .settings-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--paper-line);}
-  .settings-row:last-child{border-bottom:none;}
-  .settings-row-icon{color:var(--ink-faint); flex-shrink:0; display:flex;}
-  .settings-name-input{
-    flex:1; min-width:0; border:1px solid transparent; background:none; padding:6px 8px; border-radius:6px;
-    font-size:14px; color:var(--ink); font-family:inherit;
-  }
-  .settings-name-input:focus{border-color:var(--paper-line); background:#fff; outline:none;}
-  .settings-icon-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:4px; flex-shrink:0;}
-  .add-row{display:flex; gap:8px;}
-  .add-row .field{flex:1; margin-bottom:0;}
-  .add-row button{
-    padding:0 16px; border:none; border-radius:8px; background:var(--accent); color:#fff;
-    font-size:13px; font-weight:600; cursor:pointer;
-  }
-
-  svg{display:block;}
+  .new-cat-row{display:flex;gap:8px;}
+  .new-cat-row input{flex:1;border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13.5px;}
+  .new-cat-row input:focus{outline:2px solid var(--accent);outline-offset:1px;}
 </style>
 </head>
 <body>
 
-<div id="app">
-  <div class="loading" id="loading">불러오는 중...</div>
-</div>
+<div id="app"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-function getDefaultExpenseCats(){
-  return [
-    {name:"식비", icon:"utensils"},
-    {name:"생활용품", icon:"shopping-bag"},
-    {name:"주거", icon:"home"},
-    {name:"교통", icon:"car"},
-    {name:"여행", icon:"luggage"},
-    {name:"건강", icon:"heart-pulse"},
-    {name:"부모님", icon:"users"},
-    {name:"문화생활", icon:"film"},
-    {name:"경조사", icon:"gift"},
-    {name:"기타", icon:"more-horizontal"},
-  ];
-}
-function getDefaultPaymentMethods(){
-  return ["현금", "현대카드", "하나카드", "삼성카드"];
-}
-const INCOME_CATS = [
-  {name:"급여", icon:"wallet"},
-  {name:"부수입", icon:"trending-up"},
-  {name:"기타", icon:"more-horizontal"},
-];
-let expenseCats = [];
-let paymentMethods = [];
+(function(){
+  // ---- Supabase 연결 정보 ----
+  const SUPABASE_URL = 'https://tpjxiealovjlmyeqmupq.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_r5uArNLj0P4TBk8rPUnqqQ_hf-T2ZEC';
 
-const ICONS = {
-  "utensils": '<path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
-  "car": '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
-  "home": '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/>',
-  "smartphone": '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
-  "heart-pulse": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>',
-  "film": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M17 7.5h4M3 12h18M3 16.5h4M17 16.5h4"/>',
-  "shopping-bag": '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
-  "more-horizontal": '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
-  "wallet": '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
-  "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
-  "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
-  "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-  "chevron-left": '<path d="m15 18-6-6 6-6"/>',
-  "chevron-right": '<path d="m9 18 6-6-6-6"/>',
-  "trash-2": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
-  "luggage": '<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M4 12h16"/><path d="M9 20v1"/><path d="M15 20v1"/>',
-  "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  "gift": '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8"/><path d="M16.5 8a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8"/>',
-  "credit-card": '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
-  "banknote": '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
-  "check": '<polyline points="20 6 9 17 4 12"/>',
-  "tag": '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
-  "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
-};
-function icon(name, size, color){
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size||16}" height="${size||16}" viewBox="0 0 24 24" fill="none" stroke="${color||'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;
-}
+  const supabase = (SUPABASE_URL.startsWith('http'))
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
-// Storage wrapper:
-// - Inside a Claude artifact, uses window.storage.
-// - Outside Claude (this file opened/hosted directly), syncs with Supabase so data
-//   is shared across devices/browsers, and falls back to localStorage if the
-//   network/Supabase call fails (so the app still works offline).
-const SUPABASE_URL = 'https://djeczuzsrmfaktiuqhqs.supabase.co/rest/v1/';
-const SUPABASE_KEY = 'sb_publishable_yntqlWZfKgUnyrDn0vSVmQ_uda29sEP';
+  const LEAVE_MIN = { none:0, full:480, half:240, quarter:120 };
+  const LEAVE_LABEL = { none:'없음', full:'연차', half:'반차', quarter:'반반차' };
+  const MEAL_RATE = 9000;
+  const SESSION_KEY = 'att_session_v1';
+  const STATUS_ORDER = ['pending','in_progress','done'];
+  const STATUS_ICON = { pending:'', in_progress:'●', done:'✓' };
 
-async function storageGet(key){
-  if(typeof window.storage !== 'undefined' && window.storage){
-    return await window.storage.get(key, false);
+  let state = {
+    year: 2026,
+    month: 7,
+    days: {},
+    user: null,   // { id, name }
+    authView: 'login', // 'login' | 'signup' | 'changepin'
+    loginError: '',
+    signupError: '',
+    changePinError: '',
+    tab: 'attendance', // 'attendance' | 'todo'
+    todoCategories: [],
+    todoItems: []
+  };
+
+  const todayObj = new Date();
+  state.year = todayObj.getFullYear();
+  state.month = todayObj.getMonth() + 1;
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function monthKey(y,m){ return `${y}-${pad(m)}`; }
+  function dateKey(y,m,d){ return `${y}-${pad(m)}-${pad(d)}`; }
+  function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); }
+
+  function timeToMin(t){ if(!t) return null; const p = t.split(':'); if(p.length<2) return null; const h=Number(p[0]), mi=Number(p[1]); if(isNaN(h)||isNaN(mi)) return null; return h*60+mi; }
+  function isValidTime24(v){ return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(v); }
+  function minToStr(mins, withSign){
+    if(mins===null || mins===undefined || isNaN(mins)) return '';
+    const sign = mins<0 ? '-' : (withSign ? '+' : '');
+    const abs = Math.round(Math.abs(mins));
+    const h = Math.floor(abs/60), m = abs%60;
+    return `${sign}${h}:${pad(m)}`;
   }
-  try{
-    const res = await fetch(`${SUPABASE_URL}app_storage?key=eq.${encodeURIComponent(key)}&select=value`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-      },
-    });
-    if(!res.ok) throw new Error('supabase get failed');
-    const rows = await res.json();
-    if(rows && rows.length > 0){
-      const value = JSON.stringify(rows[0].value);
-      localStorage.setItem(key, value); // keep a local cache for offline use
-      return {key, value, shared:false};
+  function planMinutes(dow){ return (dow>=1 && dow<=5) ? 480 : 0; }
+
+  function nowTimeStr(){
+    const n = new Date();
+    return pad(n.getHours()) + ':' + pad(n.getMinutes());
+  }
+  function effectiveDayData(data){
+    if(data.checkIn && !data.checkOut){
+      return { leave: data.leave, checkIn: data.checkIn, checkOut: nowTimeStr(), _live: true };
     }
+    return data;
+  }
+
+  // ---------------- Auth ----------------
+
+  function loadSession(){
+    try{
+      const raw = localStorage.getItem(SESSION_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){ /* ignore */ }
     return null;
-  }catch(e){
-    const v = localStorage.getItem(key);
-    return v !== null ? {key, value: v, shared:false} : null;
   }
-}
-async function storageSet(key, value){
-  if(typeof window.storage !== 'undefined' && window.storage){
-    return await window.storage.set(key, value, false);
+  function saveSession(user){
+    try{ localStorage.setItem(SESSION_KEY, JSON.stringify(user)); }catch(e){ /* ignore */ }
   }
-  localStorage.setItem(key, value); // always cache locally first, so data is never lost
-  try{
-    const res = await fetch(`${SUPABASE_URL}app_storage?on_conflict=key`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify([{key, value: JSON.parse(value), updated_at: new Date().toISOString()}]),
+  function clearSession(){
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){ /* ignore */ }
+  }
+
+  async function login(name, pin){
+    if(!supabase) return { ok:false, message:'Supabase 연결 정보가 설정되지 않았어요.' };
+    if(!name){ return { ok:false, message:'이름을 입력해주세요.' }; }
+    if(!/^\d{4}$/.test(pin)){ return { ok:false, message:'PIN은 숫자 4자리로 입력해주세요.' }; }
+
+    const { data: existing, error } = await supabase
+      .from('att_users').select('id,name,pin').eq('name', name).limit(1);
+    if(error) return { ok:false, message:'서버 연결에 실패했어요. 잠시 후 다시 시도해주세요.' };
+
+    if(!existing || existing.length === 0){
+      return { ok:false, message:'등록되지 않은 이름이에요. 아래 "회원가입"으로 먼저 계정을 만들어주세요.' };
+    }
+    const row = existing[0];
+    if(row.pin !== pin){
+      return { ok:false, message:'PIN이 올바르지 않아요.' };
+    }
+    return { ok:true, user:{ id: row.id, name: row.name } };
+  }
+
+  async function register(name, pin, pinConfirm){
+    if(!supabase) return { ok:false, message:'Supabase 연결 정보가 설정되지 않았어요.' };
+    if(!name){ return { ok:false, message:'이름을 입력해주세요.' }; }
+    if(!/^\d{4}$/.test(pin)){ return { ok:false, message:'PIN은 숫자 4자리로 입력해주세요.' }; }
+    if(pin !== pinConfirm){ return { ok:false, message:'PIN이 서로 일치하지 않아요. 다시 확인해주세요.' }; }
+
+    const { data: existing, error } = await supabase
+      .from('att_users').select('id').eq('name', name).limit(1);
+    if(error) return { ok:false, message:'서버 연결에 실패했어요. 잠시 후 다시 시도해주세요.' };
+    if(existing && existing.length > 0){
+      return { ok:false, message:'이미 사용 중인 이름이에요. 동명이인이라면 이름을 다르게 등록해주세요 (예: 홍길동2). 이미 등록한 계정이라면 로그인해주세요.' };
+    }
+
+    const { data: created, error: insErr } = await supabase
+      .from('att_users').insert({ name, pin }).select('id,name').single();
+    if(insErr) return { ok:false, message:'계정 생성에 실패했어요. 잠시 후 다시 시도해주세요.' };
+    return { ok:true, user:{ id: created.id, name: created.name } };
+  }
+
+  async function changePin(name, oldPin, newPin, newPinConfirm){
+    if(!supabase) return { ok:false, message:'Supabase 연결 정보가 설정되지 않았어요.' };
+    if(!name){ return { ok:false, message:'이름을 입력해주세요.' }; }
+    if(!/^\d{4}$/.test(oldPin)){ return { ok:false, message:'기존 PIN은 숫자 4자리로 입력해주세요.' }; }
+    if(!/^\d{4}$/.test(newPin)){ return { ok:false, message:'변경할 PIN은 숫자 4자리로 입력해주세요.' }; }
+    if(newPin !== newPinConfirm){ return { ok:false, message:'변경할 PIN이 서로 일치하지 않아요. 다시 확인해주세요.' }; }
+    if(oldPin === newPin){ return { ok:false, message:'기존 PIN과 다른 값으로 설정해주세요.' }; }
+
+    const { data: existing, error } = await supabase
+      .from('att_users').select('id,pin').eq('name', name).limit(1);
+    if(error) return { ok:false, message:'서버 연결에 실패했어요. 잠시 후 다시 시도해주세요.' };
+    if(!existing || existing.length === 0){
+      return { ok:false, message:'등록되지 않은 이름이에요.' };
+    }
+    const row = existing[0];
+    if(row.pin !== oldPin){
+      return { ok:false, message:'기존 PIN이 올바르지 않아요.' };
+    }
+
+    const { error: updErr } = await supabase.from('att_users').update({ pin: newPin }).eq('id', row.id);
+    if(updErr) return { ok:false, message:'PIN 변경에 실패했어요. 잠시 후 다시 시도해주세요.' };
+    return { ok:true, user:{ id: row.id, name } };
+  }
+
+  function logout(){
+    clearSession();
+    state.user = null;
+    state.days = {};
+    state.todoCategories = [];
+    state.todoItems = [];
+    render();
+  }
+
+  // ---------------- 근태 데이터 ----------------
+
+  async function loadMonth(){
+    state.days = {};
+    if(!supabase || !state.user) return;
+    const first = dateKey(state.year, state.month, 1);
+    const last = dateKey(state.year, state.month, daysInMonth(state.year, state.month));
+    const { data, error } = await supabase
+      .from('att_days')
+      .select('date_key,leave,check_in,check_out')
+      .eq('user_id', state.user.id)
+      .gte('date_key', first)
+      .lte('date_key', last);
+    if(!error && data){
+      data.forEach(row=>{
+        state.days[row.date_key] = { leave: row.leave, checkIn: row.check_in || '', checkOut: row.check_out || '' };
+      });
+    }
+  }
+
+  async function saveDay(dstr, data){
+    if(!supabase || !state.user) return;
+    const { error } = await supabase.from('att_days').upsert({
+      user_id: state.user.id,
+      date_key: dstr,
+      leave: data.leave,
+      check_in: data.checkIn,
+      check_out: data.checkOut,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,date_key' });
+    if(!error) flashSave();
+    else console.error('save failed', error);
+  }
+
+  function getDayData(dstr){
+    if(!state.days[dstr]) state.days[dstr] = { leave:'none', checkIn:'', checkOut:'' };
+    return state.days[dstr];
+  }
+
+  function isFamilyDay(y, m, d){
+    const dow = new Date(y, m-1, d).getDay();
+    if(dow !== 5) return false;
+    return Math.ceil(d/7) === 4;
+  }
+
+  function computeDay(dow, data, familyDay){
+    const plan = planMinutes(dow);
+    const leaveMin = LEAVE_MIN[data.leave || 'none'] || 0;
+    const inM = timeToMin(data.checkIn);
+    const outM = timeToMin(data.checkOut);
+    let dur=null, lunch=0, dinner=0, actual=null;
+    if(inM!=null && outM!=null){
+      dur = outM - inM;
+      if(dur < 0) dur += 24*60;
+      const outAdj = outM < inM ? outM + 24*60 : outM;
+      const overlapStart = Math.max(inM, 11*60+30);
+      const overlapEnd = Math.min(outAdj, 12*60+30);
+      lunch = Math.max(0, overlapEnd - overlapStart);
+      dinner = dur >= (11*60+30) ? 30 : 0;
+      const base = dur - lunch - dinner;
+      if(familyDay){
+        if(base <= 4*60) actual = base + 4*60;
+        else if(base <= 8*60) actual = 8*60;
+        else actual = base;
+      } else {
+        actual = base;
+      }
+    }
+    const holidayWork = (plan===0 && actual!=null) ? actual : 0;
+    const isHolidayWorkDay = plan===0 && actual!=null;
+    const statusCounts = !isHolidayWorkDay && (actual!=null || leaveMin>0);
+    const dailyDiff = statusCounts ? (actual||0) + leaveMin - plan : 0;
+    return { plan, dur, lunch, dinner, actual, leaveMin, holidayWork, statusCounts, dailyDiff };
+  }
+
+  // ---------------- To do 데이터 ----------------
+
+  async function loadTodos(){
+    state.todoCategories = [];
+    state.todoItems = [];
+    if(!supabase || !state.user) return;
+    const { data: cats } = await supabase
+      .from('todo_categories').select('id,name,sort_order')
+      .eq('user_id', state.user.id).order('sort_order', { ascending:true });
+    state.todoCategories = cats || [];
+    const { data: items } = await supabase
+      .from('todo_items').select('id,category_id,content,due_date,status')
+      .eq('user_id', state.user.id);
+    state.todoItems = items || [];
+  }
+
+  async function addCategory(name){
+    if(!supabase || !state.user || !name) return;
+    const maxOrder = state.todoCategories.reduce((mx,c)=>Math.max(mx, c.sort_order||0), 0);
+    const { data, error } = await supabase.from('todo_categories')
+      .insert({ user_id: state.user.id, name, sort_order: maxOrder+1 })
+      .select('id,name,sort_order').single();
+    if(!error && data){ state.todoCategories.push(data); flashSave(); }
+  }
+
+  async function addTodoItem(categoryId, content, dueDate){
+    if(!supabase || !state.user || !content) return;
+    const { data, error } = await supabase.from('todo_items')
+      .insert({ user_id: state.user.id, category_id: categoryId, content, due_date: dueDate || null, status:'pending' })
+      .select('id,category_id,content,due_date,status').single();
+    if(!error && data){ state.todoItems.push(data); flashSave(); }
+  }
+
+  async function updateTodoItem(itemId, fields){
+    if(!supabase || !state.user) return;
+    const item = state.todoItems.find(i=>i.id===itemId);
+    if(!item) return;
+    Object.assign(item, fields);
+    const { error } = await supabase.from('todo_items')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('id', itemId);
+    if(!error) flashSave();
+  }
+
+  async function deleteTodoItem(itemId){
+    if(!supabase || !state.user) return;
+    state.todoItems = state.todoItems.filter(i=>i.id!==itemId);
+    render();
+    await supabase.from('todo_items').delete().eq('id', itemId);
+  }
+
+  function cycleStatus(current){
+    const idx = STATUS_ORDER.indexOf(current);
+    return STATUS_ORDER[(idx+1) % STATUS_ORDER.length];
+  }
+
+  // ---------------- 저장 표시 / 실시간 갱신 ----------------
+
+  let flashTimer=null;
+  let liveTick=null;
+  function startLiveTick(){
+    if(liveTick) return;
+    liveTick = setInterval(()=>{
+      const active = document.activeElement;
+      if(active && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) return;
+      render();
+    }, 30000);
+  }
+  function flashSave(){
+    const el = document.getElementById('save-flag');
+    if(!el) return;
+    el.classList.add('show');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(()=>el.classList.remove('show'), 900);
+  }
+
+  // ---------------- 렌더링: 로그인 / 회원가입 / PIN변경 ----------------
+
+  function renderLogin(){
+    document.getElementById('app').innerHTML = `
+      <div class="login-wrap">
+        <div class="login-card">
+          <h1>Aiden</h1>
+          <div class="desc">이름과 4자리 PIN으로 로그인하세요.</div>
+          <div class="login-field">
+            <label>이름</label>
+            <input id="loginName" type="text" placeholder="홍길동" maxlength="20">
+          </div>
+          <div class="login-field">
+            <label>PIN (숫자 4자리)</label>
+            <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+          </div>
+          <button id="loginBtn" class="login-btn">로그인</button>
+          <div id="loginError" class="login-error">${state.loginError || ''}</div>
+          <div class="login-switch">계정이 없으신가요? <a href="#" id="goSignup">회원가입</a></div>
+          <div class="login-switch">PIN을 바꾸고 싶으신가요? <a href="#" id="goChangePin">PIN 변경</a></div>
+          <div class="login-hint">${supabase ? '' : '⚠ 코드 상단의 SUPABASE_URL / SUPABASE_ANON_KEY를 먼저 채워주세요.'}</div>
+        </div>
+      </div>
+    `;
+    const nameEl = document.getElementById('loginName');
+    const pinEl = document.getElementById('loginPin');
+    const btn = document.getElementById('loginBtn');
+
+    pinEl.addEventListener('input', ()=>{
+      pinEl.value = pinEl.value.replace(/[^0-9]/g,'').slice(0,4);
     });
-    if(!res.ok) throw new Error('supabase set failed: ' + res.status);
-  }catch(e){
-    // Cloud sync failed (offline / network issue), but the data is safe in
-    // localStorage on this device, so don't alarm the user — just log it.
-    console.warn('Supabase sync failed, saved locally instead:', e);
-  }
-  return {key, value, shared:false};
-}
 
-let entries = [];
-let currentMonth = todayStr().slice(0,7);
-let formOpen = false;
-let form = {type:"expense", date:todayStr(), time:currentTimeStr(), category:"식비", payment:"현대카드", amount:"", memo:""};
-let editingId = null;
-let confirmDeleteId = null;
-let errorMsg = "";
-let errorTimer = null;
-let activeTab = "ledger"; // 'ledger' | 'payment'
-let selectedPaymentMethod = null;
-let topTab = "ledger"; // 'ledger' | 'fixed' | 'salary'
-let settingsOpen = false;
-let settingsTab = "category"; // 'category' | 'payment'
-let deleteCategoryTarget = null;
-let deletePaymentTarget = null;
-
-// --- Fixed expenses (고정비) state ---
-let fixedGroups = [];
-let fixedItemFormOpen = false;
-let fixedItemForm = {groupId:null, name:'', day:'1', payment:'', amount:'', prepaid:false};
-let fixedEditingItemId = null;
-let fixedConfirmDelete = null; // {groupId, itemId}
-let fixedGroupFormOpen = false;
-let fixedConfirmDeleteGroup = null;
-let fixedActiveGroupId = null;
-
-function ensureFixedActiveGroup(){
-  if(!fixedGroups.find(g => g.id === fixedActiveGroupId)){
-    fixedActiveGroupId = fixedGroups.length ? fixedGroups[0].id : null;
-  }
-}
-
-function getDefaultFixedGroups(){
-  const g = (id) => id;
-  return [
-    {
-      id: 'g-eunji',
-      name: '은지 고정비',
-      items: [
-        {id:'ej-1', name:'네이버플러스 멤버십', day:3, payment:'삼성카드', amount:4900, prepaid:false},
-        {id:'ej-2', name:'icloud', day:11, payment:'삼성카드', amount:14000, prepaid:false},
-        {id:'ej-3', name:'운전자보험', day:11, payment:'신한은행', amount:14030, prepaid:false},
-        {id:'ej-4', name:'휴대폰 통신비', day:11, payment:'삼성카드', amount:68250, prepaid:false},
-        {id:'ej-5', name:'카톡 이모티콘', day:13, payment:'삼성카드', amount:3900, prepaid:false},
-        {id:'ej-6', name:'톡서랍 플러스', day:13, payment:'삼성카드', amount:1900, prepaid:false},
-        {id:'ej-7', name:'애플뮤직', day:21, payment:'삼성카드', amount:13500, prepaid:false},
-        {id:'ej-8', name:'보험료', day:21, payment:'신한은행', amount:65000, prepaid:false},
-        {id:'ej-9', name:'IRP (퇴직연금)', day:21, payment:'신한은행', amount:200000, prepaid:false},
-        {id:'ej-10', name:'동기 계', day:21, payment:'신한은행', amount:20000, prepaid:false},
-        {id:'ej-11', name:'주택청약', day:21, payment:'신한은행', amount:100000, prepaid:false},
-        {id:'ej-12', name:'알뜰폰 요금제', day:26, payment:'삼성카드', amount:11000, prepaid:false},
-      ],
-    },
-    {
-      id: 'g-yeonjo',
-      name: '연조 고정비',
-      items: [
-        {id:'yj-1', name:'웨이브 + 티빙', day:10, payment:'하나카드', amount:19500, prepaid:false},
-        {id:'yj-2', name:'인터넷비', day:11, payment:'하나카드', amount:41800, prepaid:false},
-        {id:'yj-3', name:'휴대폰 통신비', day:11, payment:'하나카드', amount:93900, prepaid:false},
-        {id:'yj-4', name:'넷플릭스', day:12, payment:'하나카드', amount:17000, prepaid:false},
-        {id:'yj-5', name:'운전자보험', day:21, payment:'신한은행', amount:16080, prepaid:false},
-        {id:'yj-6', name:'건강보험 (DB손해보험)', day:21, payment:'신한은행', amount:75380, prepaid:false},
-        {id:'yj-7', name:'청약', day:21, payment:'하나은행', amount:50000, prepaid:false},
-        {id:'yj-8', name:'남탕 계', day:22, payment:'토스뱅크', amount:30000, prepaid:false},
-        {id:'yj-9', name:'주차비', day:22, payment:'하나카드', amount:30000, prepaid:false},
-        {id:'yj-10', name:'삼성화재 (아파트화재보험)', day:23, payment:'하나은행', amount:8350, prepaid:false},
-        {id:'yj-11', name:'건강보험 (신한라이프)', day:25, payment:'신한은행', amount:32344, prepaid:false},
-        {id:'yj-12', name:'IRP (퇴직연금)', day:25, payment:'신한은행', amount:200000, prepaid:false},
-        {id:'yj-13', name:'휴대폰 보험', day:25, payment:'하나카드', amount:11200, prepaid:false},
-        {id:'yj-14', name:'톡서랍 플러스', day:30, payment:'하나카드', amount:1900, prepaid:false},
-      ],
-    },
-  ];
-}
-
-function todayStr(){
-  const d = new Date();
-  const off = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - off*60000);
-  return local.toISOString().slice(0,10);
-}
-function currentTimeStr(){
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-}
-function fmt(n){ return Math.round(n).toLocaleString('ko-KR'); }
-function monthKey(dateStr){ return dateStr.slice(0,7); }
-function monthLabel(key){
-  const [y,m] = key.split('-');
-  return `${y}년 ${parseInt(m,10)}월`;
-}
-function shiftMonth(key, delta){
-  const [y,m] = key.split('-').map(Number);
-  const d = new Date(y, m-1+delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-function catIcon(type, name){
-  const list = type === 'income' ? INCOME_CATS : expenseCats;
-  const found = list.find(c => c.name === name);
-  return found ? found.icon : 'more-horizontal';
-}
-function paymentIcon(name){
-  return name === '현금' ? 'banknote' : 'credit-card';
-}
-const PAYMENT_COLORS = {
-  "현금": "#6B6A5C",
-  "현대카드": "#26313C",
-  "삼성카드": "#2C7A5B",
-  "하나카드": "#3E9B7C",
-  "하나은행": "#0F7A4A",
-  "신한은행": "#3E6FA8",
-  "신한카드": "#3E6FA8",
-  "토스뱅크": "#4B5FBD",
-  "국민은행": "#7A3E9B",
-  "우리은행": "#0D6E9E",
-  "카카오뱅크": "#B98A00",
-};
-const PAYMENT_COLOR_FALLBACK = ["#9B5DE5","#C9184A","#00838F","#8A5A00","#5C6BC0","#B0413E","#4E7A3D"];
-function hashStr(str){
-  let h = 0;
-  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
-  return Math.abs(h);
-}
-function paymentColor(name){
-  if(PAYMENT_COLORS[name]) return PAYMENT_COLORS[name];
-  return PAYMENT_COLOR_FALLBACK[hashStr(name) % PAYMENT_COLOR_FALLBACK.length];
-}
-
-async function loadEntries(){
-  try{
-    const res = await storageGet('ledger-entries');
-    if(res && res.value) entries = JSON.parse(res.value);
-  }catch(e){
-    // no data yet
-  }
-}
-async function persist(){
-  try{
-    await storageSet('ledger-entries', JSON.stringify(entries));
-  }catch(e){
-    showError('저장에 실패했습니다. 다시 시도해 주세요.');
-  }
-}
-async function loadFixedGroups(){
-  try{
-    const res = await storageGet('fixed-groups');
-    if(res && res.value){
-      fixedGroups = JSON.parse(res.value);
-      return;
+    async function doLogin(){
+      btn.disabled = true;
+      btn.textContent = '로그인 중...';
+      const res = await login(nameEl.value.trim(), pinEl.value.trim());
+      if(res.ok){
+        state.user = res.user;
+        state.loginError = '';
+        saveSession(res.user);
+        await Promise.all([loadMonth(), loadTodos()]);
+        render();
+      } else {
+        state.loginError = res.message;
+        btn.disabled = false;
+        btn.textContent = '로그인';
+        render();
+      }
     }
-  }catch(e){
-    // no data yet
+    btn.addEventListener('click', doLogin);
+    [nameEl, pinEl].forEach(el=>{
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+    });
+    document.getElementById('goSignup').addEventListener('click', (e)=>{
+      e.preventDefault();
+      state.authView = 'signup';
+      state.signupError = '';
+      render();
+    });
+    document.getElementById('goChangePin').addEventListener('click', (e)=>{
+      e.preventDefault();
+      state.authView = 'changepin';
+      state.changePinError = '';
+      render();
+    });
   }
-  fixedGroups = getDefaultFixedGroups();
-  await persistFixed();
-}
-async function persistFixed(){
-  try{
-    await storageSet('fixed-groups', JSON.stringify(fixedGroups));
-  }catch(e){
-    showError('저장에 실패했습니다. 다시 시도해 주세요.');
-  }
-}
-async function loadCategories(){
-  try{
-    const res = await storageGet('expense-categories');
-    if(res && res.value){
-      expenseCats = JSON.parse(res.value);
-      return;
-    }
-  }catch(e){
-    // no data yet
-  }
-  expenseCats = getDefaultExpenseCats();
-  await persistCategories();
-}
-async function persistCategories(){
-  try{
-    await storageSet('expense-categories', JSON.stringify(expenseCats));
-  }catch(e){
-    showError('저장에 실패했습니다. 다시 시도해 주세요.');
-  }
-}
-async function loadPaymentMethods(){
-  try{
-    const res = await storageGet('payment-methods');
-    if(res && res.value){
-      paymentMethods = JSON.parse(res.value);
-      return;
-    }
-  }catch(e){
-    // no data yet
-  }
-  paymentMethods = getDefaultPaymentMethods();
-  await persistPaymentMethods();
-}
-async function persistPaymentMethods(){
-  try{
-    await storageSet('payment-methods', JSON.stringify(paymentMethods));
-  }catch(e){
-    showError('저장에 실패했습니다. 다시 시도해 주세요.');
-  }
-}
-function showError(msg){
-  errorMsg = msg;
-  render();
-  clearTimeout(errorTimer);
-  errorTimer = setTimeout(()=>{ errorMsg=""; render(); }, 2500);
-}
 
-function computeData(){
-  const dt = (e) => `${e.date}T${e.time || '00:00'}`;
-  const sortedAll = [...entries].sort((a,b)=> {
-    const da = dt(a), db = dt(b);
-    return da === db ? a.id-b.id : (da < db ? -1 : 1);
-  });
-  let running = 0;
-  const withBalance = sortedAll.map(e=>{
-    running += e.type === 'income' ? e.amount : -e.amount;
-    return {...e, balance: running};
-  });
-  const inMonth = withBalance
-    .filter(e=> monthKey(e.date) === currentMonth)
-    .sort((a,b)=> {
-      const da = dt(a), db = dt(b);
-      return da === db ? b.id-a.id : (da > db ? -1 : 1);
+  function renderSignup(){
+    document.getElementById('app').innerHTML = `
+      <div class="login-wrap">
+        <div class="login-card">
+          <h1>회원가입</h1>
+          <div class="desc">이름과 4자리 PIN을 정하세요.<br>PIN은 확인을 위해 두 번 입력해주세요.</div>
+          <div class="login-field">
+            <label>이름</label>
+            <input id="suName" type="text" placeholder="홍길동" maxlength="20">
+          </div>
+          <div class="login-field">
+            <label>PIN (숫자 4자리)</label>
+            <input id="suPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+          </div>
+          <div class="login-field">
+            <label>PIN 확인</label>
+            <input id="suPinConfirm" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+          </div>
+          <button id="signupBtn" class="login-btn">회원가입</button>
+          <div id="signupError" class="login-error">${state.signupError || ''}</div>
+          <div class="login-switch">이미 계정이 있으신가요? <a href="#" id="goLogin">로그인</a></div>
+          <div class="login-hint">${supabase ? '' : '⚠ 코드 상단의 SUPABASE_URL / SUPABASE_ANON_KEY를 먼저 채워주세요.'}</div>
+        </div>
+      </div>
+    `;
+    const nameEl = document.getElementById('suName');
+    const pinEl = document.getElementById('suPin');
+    const pinConfirmEl = document.getElementById('suPinConfirm');
+    const btn = document.getElementById('signupBtn');
+
+    [pinEl, pinConfirmEl].forEach(el=>{
+      el.addEventListener('input', ()=>{
+        el.value = el.value.replace(/[^0-9]/g,'').slice(0,4);
+      });
     });
 
-  const monthIncome = inMonth.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
-  const monthExpense = inMonth.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
-
-  const byCat = {};
-  inMonth.filter(e=>e.type==='expense').forEach(e=>{
-    byCat[e.category] = (byCat[e.category]||0) + e.amount;
-  });
-  const catBreakdown = Object.entries(byCat).map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount);
-
-  const byPayment = {};
-  inMonth.filter(e=>e.type==='expense').forEach(e=>{
-    const key = e.payment || '미지정';
-    if(!byPayment[key]) byPayment[key] = {amount:0, count:0};
-    byPayment[key].amount += e.amount;
-    byPayment[key].count += 1;
-  });
-  const paymentOrder = [...paymentMethods, '미지정'];
-  const paymentBreakdown = paymentOrder
-    .filter(name => byPayment[name])
-    .map(name => ({name, amount: byPayment[name].amount, count: byPayment[name].count}))
-    .sort((a,b)=>b.amount-a.amount);
-
-  const totalBalance = withBalance.length ? withBalance[withBalance.length-1].balance : 0;
-
-  return {monthEntries: inMonth, monthIncome, monthExpense, totalBalance, catBreakdown, paymentBreakdown};
-}
-
-function openForm(type){
-  editingId = null;
-  form = {type, date: todayStr(), time: currentTimeStr(), category: type==='income' ? '급여' : '식비', payment:'현대카드', amount:'', memo:''};
-  formOpen = true;
-  render();
-}
-function openEditForm(id){
-  const e = entries.find(x => x.id === id);
-  if(!e) return;
-  editingId = id;
-  form = {
-    type: e.type,
-    date: e.date,
-    time: e.time || currentTimeStr(),
-    category: e.category,
-    payment: e.payment || '현대카드',
-    amount: String(e.amount),
-    memo: e.memo || '',
-  };
-  formOpen = true;
-  render();
-}
-function closeForm(){ formOpen = false; editingId = null; render(); }
-
-async function submitForm(){
-  const raw = document.getElementById('f-amount').value;
-  const amt = parseInt(raw.replace(/[^0-9]/g,''), 10);
-  if(!amt || amt <= 0){
-    showError('금액을 올바르게 입력해 주세요.');
-    return;
-  }
-  form.date = document.getElementById('f-date').value || todayStr();
-  form.memo = document.getElementById('f-memo').value.trim();
-  const timeEl = document.getElementById('f-time');
-  form.time = form.type === 'expense' ? ((timeEl && timeEl.value) || currentTimeStr()) : undefined;
-
-  if(editingId){
-    const idx = entries.findIndex(x => x.id === editingId);
-    if(idx !== -1){
-      entries[idx] = {
-        ...entries[idx],
-        date: form.date,
-        time: form.time,
-        category: form.category,
-        payment: form.type === 'expense' ? form.payment : undefined,
-        amount: amt,
-        memo: form.memo,
-      };
+    async function doSignup(){
+      btn.disabled = true;
+      btn.textContent = '가입 중...';
+      const res = await register(nameEl.value.trim(), pinEl.value.trim(), pinConfirmEl.value.trim());
+      if(res.ok){
+        state.user = res.user;
+        state.signupError = '';
+        saveSession(res.user);
+        await Promise.all([loadMonth(), loadTodos()]);
+        render();
+      } else {
+        state.signupError = res.message;
+        btn.disabled = false;
+        btn.textContent = '회원가입';
+        render();
+      }
     }
-  } else {
-    const entry = {
-      id: Date.now(),
-      type: form.type,
-      date: form.date,
-      time: form.time,
-      category: form.category,
-      payment: form.type === 'expense' ? form.payment : undefined,
-      amount: amt,
-      memo: form.memo,
-    };
-    entries.push(entry);
+    btn.addEventListener('click', doSignup);
+    [nameEl, pinEl, pinConfirmEl].forEach(el=>{
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter') doSignup(); });
+    });
+    document.getElementById('goLogin').addEventListener('click', (e)=>{
+      e.preventDefault();
+      state.authView = 'login';
+      state.loginError = '';
+      render();
+    });
   }
-  await persist();
-  currentMonth = monthKey(form.date);
-  formOpen = false;
-  editingId = null;
-  render();
-}
 
-function askDelete(id){ confirmDeleteId = id; render(); }
-function cancelDelete(){ confirmDeleteId = null; render(); }
-async function doDelete(){
-  entries = entries.filter(e=>e.id !== confirmDeleteId);
-  await persist();
-  confirmDeleteId = null;
-  render();
-}
+  function renderChangePin(){
+    document.getElementById('app').innerHTML = `
+      <div class="login-wrap">
+        <div class="login-card">
+          <h1>PIN 변경</h1>
+          <div class="desc">이름과 기존 PIN을 확인한 뒤, 새 PIN을 두 번 입력해주세요.</div>
+          <div class="login-field">
+            <label>이름</label>
+            <input id="cpName" type="text" placeholder="홍길동" maxlength="20">
+          </div>
+          <div class="login-field">
+            <label>기존 PIN (숫자 4자리)</label>
+            <input id="cpOldPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+          </div>
+          <div class="login-field">
+            <label>변경 PIN (숫자 4자리)</label>
+            <input id="cpNewPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+          </div>
+          <div class="login-field">
+            <label>변경 PIN 확인</label>
+            <input id="cpNewPinConfirm" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+          </div>
+          <button id="changePinBtn" class="login-btn">PIN 변경</button>
+          <div id="changePinError" class="login-error">${state.changePinError || ''}</div>
+          <div class="login-switch">생각이 바뀌셨나요? <a href="#" id="goLoginFromChangePin">로그인으로 돌아가기</a></div>
+          <div class="login-hint">${supabase ? '' : '⚠ 코드 상단의 SUPABASE_URL / SUPABASE_ANON_KEY를 먼저 채워주세요.'}</div>
+        </div>
+      </div>
+    `;
+    const nameEl = document.getElementById('cpName');
+    const oldPinEl = document.getElementById('cpOldPin');
+    const newPinEl = document.getElementById('cpNewPin');
+    const newPinConfirmEl = document.getElementById('cpNewPinConfirm');
+    const btn = document.getElementById('changePinBtn');
 
-function selectCategory(name){
-  form.category = name;
-  render();
-}
-function selectPayment(name){
-  form.payment = name;
-  render();
-}
-function switchTab(tab){
-  activeTab = tab;
-  selectedPaymentMethod = null;
-  render();
-}
-function switchTopTab(tab){
-  topTab = tab;
-  render();
-}
+    [oldPinEl, newPinEl, newPinConfirmEl].forEach(el=>{
+      el.addEventListener('input', ()=>{
+        el.value = el.value.replace(/[^0-9]/g,'').slice(0,4);
+      });
+    });
 
-// --- Settings: manage expense categories & payment methods ---
-function openSettings(){
-  settingsOpen = true;
-  settingsTab = 'category';
-  render();
-}
-function closeSettings(){
-  settingsOpen = false;
-  render();
-}
-function switchSettingsTab(tab){
-  settingsTab = tab;
-  render();
-}
-
-async function addCategory(){
-  const name = document.getElementById('new-cat-name').value.trim();
-  if(!name){ showError('분류 이름을 입력해 주세요.'); return; }
-  if(expenseCats.some(c => c.name === name)){ showError('이미 있는 분류예요.'); return; }
-  expenseCats.push({name, icon:'tag'});
-  await persistCategories();
-  render();
-}
-async function renameCategory(oldName, newNameRaw){
-  const newName = (newNameRaw || '').trim();
-  if(!newName || newName === oldName){ render(); return; }
-  if(expenseCats.some(c => c.name === newName)){ showError('이미 있는 분류예요.'); render(); return; }
-  const cat = expenseCats.find(c => c.name === oldName);
-  if(!cat){ render(); return; }
-  cat.name = newName;
-  entries.forEach(e => { if(e.type === 'expense' && e.category === oldName) e.category = newName; });
-  await persistCategories();
-  await persist();
-  render();
-}
-function askDeleteCategory(name){
-  deleteCategoryTarget = name;
-  render();
-}
-function cancelDeleteCategory(){
-  deleteCategoryTarget = null;
-  render();
-}
-async function doDeleteCategory(){
-  expenseCats = expenseCats.filter(c => c.name !== deleteCategoryTarget);
-  await persistCategories();
-  deleteCategoryTarget = null;
-  render();
-}
-
-async function addPaymentMethod(){
-  const name = document.getElementById('new-pay-name').value.trim();
-  if(!name){ showError('결제 방식 이름을 입력해 주세요.'); return; }
-  if(paymentMethods.includes(name)){ showError('이미 있는 결제 방식이에요.'); return; }
-  paymentMethods.push(name);
-  await persistPaymentMethods();
-  render();
-}
-async function renamePaymentMethod(oldName, newNameRaw){
-  const newName = (newNameRaw || '').trim();
-  if(!newName || newName === oldName){ render(); return; }
-  if(paymentMethods.includes(newName)){ showError('이미 있는 결제 방식이에요.'); render(); return; }
-  const idx = paymentMethods.indexOf(oldName);
-  if(idx === -1){ render(); return; }
-  paymentMethods[idx] = newName;
-  entries.forEach(e => { if(e.payment === oldName) e.payment = newName; });
-  fixedGroups.forEach(g => g.items.forEach(it => { if(it.payment === oldName) it.payment = newName; }));
-  await persistPaymentMethods();
-  await persist();
-  await persistFixed();
-  render();
-}
-function askDeletePayment(name){
-  deletePaymentTarget = name;
-  render();
-}
-function cancelDeletePayment(){
-  deletePaymentTarget = null;
-  render();
-}
-async function doDeletePayment(){
-  paymentMethods = paymentMethods.filter(p => p !== deletePaymentTarget);
-  await persistPaymentMethods();
-  deletePaymentTarget = null;
-  render();
-}
-
-// --- Fixed expense group actions ---
-function openAddGroupForm(){
-  fixedGroupFormOpen = true;
-  render();
-}
-function closeAddGroupForm(){
-  fixedGroupFormOpen = false;
-  render();
-}
-async function submitAddGroup(){
-  const name = document.getElementById('fg-name').value.trim();
-  if(!name){
-    showError('그룹 이름을 입력해 주세요.');
-    return;
-  }
-  const newGroup = {id:'g-'+Date.now(), name, items:[]};
-  fixedGroups.push(newGroup);
-  await persistFixed();
-  fixedGroupFormOpen = false;
-  fixedActiveGroupId = newGroup.id;
-  render();
-}
-function switchFixedGroup(id){
-  fixedActiveGroupId = id;
-  render();
-}
-function askDeleteGroup(id){
-  fixedConfirmDeleteGroup = id;
-  render();
-}
-function cancelDeleteGroup(){
-  fixedConfirmDeleteGroup = null;
-  render();
-}
-async function doDeleteGroup(){
-  fixedGroups = fixedGroups.filter(g => g.id !== fixedConfirmDeleteGroup);
-  await persistFixed();
-  fixedConfirmDeleteGroup = null;
-  ensureFixedActiveGroup();
-  render();
-}
-
-// --- Fixed expense item actions ---
-function openAddItemForm(groupId){
-  fixedEditingItemId = null;
-  fixedItemForm = {groupId, name:'', day:'1', payment:'', amount:'', prepaid:false};
-  fixedItemFormOpen = true;
-  render();
-}
-function openEditItemForm(groupId, itemId){
-  const g = fixedGroups.find(x => x.id === groupId);
-  const it = g && g.items.find(x => x.id === itemId);
-  if(!it) return;
-  fixedEditingItemId = itemId;
-  fixedItemForm = {groupId, name:it.name, day:String(it.day), payment:it.payment || '', amount:String(it.amount), prepaid:!!it.prepaid};
-  fixedItemFormOpen = true;
-  render();
-}
-function closeItemForm(){
-  fixedItemFormOpen = false;
-  fixedEditingItemId = null;
-  render();
-}
-function toggleFixedFormPrepaid(){
-  fixedItemForm.prepaid = !fixedItemForm.prepaid;
-  render();
-}
-async function submitFixedItem(){
-  const name = document.getElementById('fi-name').value.trim();
-  const day = parseInt(document.getElementById('fi-day').value, 10) || 1;
-  const payment = document.getElementById('fi-payment').value.trim();
-  const rawAmt = document.getElementById('fi-amount').value;
-  const amount = parseInt(rawAmt.replace(/[^0-9]/g,''), 10);
-  if(!name){
-    showError('항목명을 입력해 주세요.');
-    return;
-  }
-  if(!amount || amount <= 0){
-    showError('금액을 올바르게 입력해 주세요.');
-    return;
-  }
-  const g = fixedGroups.find(x => x.id === fixedItemForm.groupId);
-  if(!g) return;
-  if(fixedEditingItemId){
-    const idx = g.items.findIndex(x => x.id === fixedEditingItemId);
-    if(idx !== -1){
-      g.items[idx] = {...g.items[idx], name, day, payment, amount, prepaid: fixedItemForm.prepaid};
+    async function doChangePin(){
+      btn.disabled = true;
+      btn.textContent = '변경 중...';
+      const res = await changePin(
+        nameEl.value.trim(),
+        oldPinEl.value.trim(),
+        newPinEl.value.trim(),
+        newPinConfirmEl.value.trim()
+      );
+      if(res.ok){
+        state.user = res.user;
+        state.changePinError = '';
+        saveSession(res.user);
+        await Promise.all([loadMonth(), loadTodos()]);
+        render();
+      } else {
+        state.changePinError = res.message;
+        btn.disabled = false;
+        btn.textContent = 'PIN 변경';
+        render();
+      }
     }
-  } else {
-    g.items.push({id:'fi-'+Date.now(), name, day, payment, amount, prepaid: fixedItemForm.prepaid});
-  }
-  await persistFixed();
-  fixedItemFormOpen = false;
-  fixedEditingItemId = null;
-  render();
-}
-async function toggleItemPrepaid(groupId, itemId){
-  const g = fixedGroups.find(x => x.id === groupId);
-  const it = g && g.items.find(x => x.id === itemId);
-  if(!it) return;
-  it.prepaid = !it.prepaid;
-  await persistFixed();
-  render();
-}
-function askDeleteItem(groupId, itemId){
-  fixedConfirmDelete = {groupId, itemId};
-  render();
-}
-function cancelDeleteItem(){
-  fixedConfirmDelete = null;
-  render();
-}
-async function doDeleteItem(){
-  const {groupId, itemId} = fixedConfirmDelete;
-  const g = fixedGroups.find(x => x.id === groupId);
-  if(g) g.items = g.items.filter(x => x.id !== itemId);
-  await persistFixed();
-  fixedConfirmDelete = null;
-  render();
-}
-function selectPaymentFilter(name){
-  selectedPaymentMethod = (selectedPaymentMethod === name) ? null : name;
-  render();
-}
-
-function renderRows(list, emptyMessage){
-  if(list.length === 0){
-    return `<div class="ledger-empty">${emptyMessage || '표시할 기록이 없습니다.'}</div>`;
-  }
-  return list.map(e=>{
-    const isIncome = e.type === 'income';
-    const color = isIncome ? 'var(--stamp-green)' : 'var(--stamp-red)';
-    return `
-    <div class="ledger-row" onclick="openEditForm(${e.id})">
-      <div class="cat-icon" style="--c:${color}">${icon(catIcon(e.type,e.category), 16, color)}</div>
-      <div class="row-main">
-        <div class="row-top">
-          <span class="cat-name">${escapeHtml(e.category)}</span>
-          <span class="row-date mono">${e.date.slice(5).replace('-','/')}${e.time ? ' ' + e.time : ''}</span>
-          ${e.payment ? `<span class="row-payment">${escapeHtml(e.payment)}</span>` : ''}
-        </div>
-        ${e.memo ? `<p class="row-memo">${escapeHtml(e.memo)}</p>` : ''}
-      </div>
-      <div class="row-amt">
-        <p class="amt mono" style="color:${color}">${isIncome?'+':'-'}${fmt(e.amount)}</p>
-        <p class="bal mono">잔액 ${fmt(e.balance)}</p>
-      </div>
-      <button class="del-btn" onclick="event.stopPropagation(); askDelete(${e.id})">${icon('trash-2',14)}</button>
-    </div>`;
-  }).join('');
-}
-
-function renderFixedTab(){
-  ensureFixedActiveGroup();
-  const grandTotal = fixedGroups.reduce((s,g)=> s + g.items.reduce((s2,it)=>s2+it.amount,0), 0);
-
-  function renderGroupCard(g){
-    const total = g.items.reduce((s,it)=>s+it.amount,0);
-    const rows = g.items.length === 0
-      ? `<div class="ledger-empty">등록된 항목이 없습니다.</div>`
-      : g.items.slice().sort((a,b)=>a.day-b.day).map(it=>{
-          const pc = it.payment ? paymentColor(it.payment) : null;
-          return `
-          <div class="fixed-row" onclick="openEditItemForm('${g.id}','${it.id}')">
-            <div class="fixed-checkbox ${it.prepaid ? 'checked' : ''}" onclick="event.stopPropagation(); toggleItemPrepaid('${g.id}','${it.id}')">
-              ${it.prepaid ? icon('check', 13, '#fff') : ''}
-            </div>
-            <div class="fixed-main">
-              <div class="fixed-name-row">
-                <span class="fixed-name">${escapeHtml(it.name)}</span>
-                ${it.payment ? `<span class="pay-tag" style="background:${pc}1A; color:${pc}; border-color:${pc}66;">${escapeHtml(it.payment)}</span>` : ''}
-              </div>
-              <p class="fixed-meta mono">매월 ${it.day}일${it.prepaid ? ' · 선결제' : ''}</p>
-            </div>
-            <div class="fixed-amt mono">${fmt(it.amount)}원</div>
-            <button class="del-btn" onclick="event.stopPropagation(); askDeleteItem('${g.id}','${it.id}')">${icon('trash-2',14)}</button>
-          </div>`;
-        }).join('');
-    return `
-      <div class="fixed-card">
-        <div class="fixed-card-head">
-          <div>
-            <p class="fg-name">${escapeHtml(g.name)}</p>
-            <p class="fg-count">${g.items.length}건</p>
-          </div>
-          <div style="text-align:right;">
-            <p class="fg-total mono">${fmt(total)}원</p>
-            <button class="fg-del-btn" onclick="askDeleteGroup('${g.id}')">그룹 삭제</button>
-          </div>
-        </div>
-        ${rows}
-        <button class="fixed-add-btn" onclick="openAddItemForm('${g.id}')">${icon('plus',14)} 항목 추가</button>
-      </div>`;
+    btn.addEventListener('click', doChangePin);
+    [nameEl, oldPinEl, newPinEl, newPinConfirmEl].forEach(el=>{
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter') doChangePin(); });
+    });
+    document.getElementById('goLoginFromChangePin').addEventListener('click', (e)=>{
+      e.preventDefault();
+      state.authView = 'login';
+      state.loginError = '';
+      render();
+    });
   }
 
-  const activeGroup = fixedGroups.find(g => g.id === fixedActiveGroupId);
-  const groupTabsHtml = fixedGroups.length === 0 ? '' : `
-    <div class="tab-bar">
-      ${fixedGroups.map(g => `
-        <button class="tab-btn ${g.id===fixedActiveGroupId ? 'active' : ''}" onclick="switchFixedGroup('${g.id}')">${escapeHtml(g.name)}</button>
-      `).join('')}
-    </div>`;
+  // ---------------- 렌더링: 근태 관리 탭 ----------------
 
-  return `
-    <div class="cover" style="padding-bottom:24px;">
-      <div class="ring1"></div><div class="ring2"></div>
-      <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
-      <h1 class="serif">고정비</h1>
-      <p class="balance-label">전체 고정비 합계</p>
-      <p class="balance-value mono">${fmt(grandTotal)}<span>원</span></p>
-    </div>
+  function renderAttendanceHtml(){
+    const y = state.year, m = state.month;
+    const nDays = daysInMonth(y,m);
+    const rows = [];
+    let cumulative = 0;
+    let totals = { plan:0, dur:0, lunch:0, dinner:0, actual:0, holiday:0, leave:0 };
 
-    ${groupTabsHtml}
+    for(let d=1; d<=nDays; d++){
+      const dstr = dateKey(y,m,d);
+      const dow = new Date(y, m-1, d).getDay();
+      const data = getDayData(dstr);
+      const effData = effectiveDayData(data);
+      const isLive = !!effData._live;
+      const famDay = isFamilyDay(y, m, d);
+      const c = computeDay(dow, effData, famDay);
+      if(c.statusCounts) cumulative += c.dailyDiff;
+      totals.plan += c.plan;
+      totals.dur += (c.dur||0);
+      totals.lunch += c.lunch;
+      totals.dinner += c.dinner;
+      totals.actual += (c.actual||0);
+      totals.holiday += c.holidayWork;
+      totals.leave += c.leaveMin;
 
-    ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
+      const rowClass = dow===6 ? 'weekend-sat' : (dow===0 ? 'weekend-sun' : '');
+      const weekdayLabel = ['일','월','화','수','목','금','토'][dow];
+      const tabIn = d*2 - 1;
+      const tabOut = d*2;
 
-    <div style="padding:20px;">
-      ${fixedGroups.length === 0 ? `<div class="ledger-empty">아직 고정비 그룹이 없습니다.</div>` : (activeGroup ? renderGroupCard(activeGroup) : '')}
-      <button class="add-group-btn" onclick="openAddGroupForm()">${icon('plus',15)} 그룹 추가</button>
-    </div>
+      rows.push(`
+        <tr class="${rowClass}" data-date="${dstr}">
+          <td class="date-cell mono">${d}일(${weekdayLabel})${famDay ? ' <span class="family-tag">FD</span>' : ''}</td>
+          <td>
+            <select class="leave-input" data-field="leave" data-date="${dstr}" tabindex="-1">
+              ${Object.keys(LEAVE_MIN).map(k=>`<option value="${k}" ${data.leave===k?'selected':''}>${LEAVE_LABEL[k]}</option>`).join('')}
+            </select>
+          </td>
+          <td class="mono">${c.plan>0 ? minToStr(c.plan) : '<span class="muted">-</span>'}</td>
+          <td><input class="time-input" type="text" inputmode="numeric" placeholder="09:00" maxlength="5" data-field="checkIn" data-date="${dstr}" value="${data.checkIn||''}" tabindex="${tabIn}"></td>
+          <td><input class="time-input${isLive ? ' live-preview' : ''}" type="text" inputmode="numeric" placeholder="18:00" maxlength="5" data-field="checkOut" data-date="${dstr}" value="${isLive ? effData.checkOut : (data.checkOut||'')}" tabindex="${tabOut}"></td>
+          <td class="mono">${c.dur!=null ? minToStr(c.dur) : ''}</td>
+          <td class="mono">${c.dur!=null ? minToStr(c.lunch) : ''}</td>
+          <td class="mono">${c.dur!=null ? minToStr(c.dinner) : ''}</td>
+          <td class="mono ${famDay ? 'family-cell' : ''}">${c.actual!=null ? minToStr(c.actual) : ''}</td>
+          <td class="mono">${c.holidayWork>0 ? minToStr(c.holidayWork) : ''}</td>
+          <td class="mono ${c.statusCounts ? (cumulative>=0?'diff-pos':'diff-neg') : ''}">${c.statusCounts ? minToStr(cumulative, true) : ''}</td>
+        </tr>
+      `);
+    }
 
-    <div class="overlay ${fixedItemFormOpen ? 'open' : ''}" onclick="closeItemForm()">
-      <div class="modal" onclick="event.stopPropagation()">
-        <div class="modal-head">
-          <h2 class="serif">${fixedEditingItemId ? '고정비 수정' : '고정비 추가'}</h2>
-          <button onclick="closeItemForm()">${icon('x',20)}</button>
-        </div>
-        <input id="fi-name" type="text" placeholder="항목명 (예: 휴대폰 통신비)" class="field" value="${escapeHtml(fixedItemForm.name)}">
-        <div class="field-row">
-          <input id="fi-day" type="number" min="1" max="31" placeholder="매월 며칠" class="field mono" value="${fixedItemForm.day}">
-          <input id="fi-payment" list="payment-suggestions" placeholder="지출수단" class="field" value="${escapeHtml(fixedItemForm.payment)}">
-        </div>
-        <datalist id="payment-suggestions">
-          ${Array.from(new Set([...paymentMethods, '신한은행','하나은행','토스뱅크'])).map(p=>`<option value="${escapeHtml(p)}">`).join('')}
-        </datalist>
-        <input id="fi-amount" type="text" inputmode="numeric" placeholder="금액 (원)" class="field mono" value="${fixedItemForm.amount}">
-        <div class="prepaid-row" onclick="toggleFixedFormPrepaid()">
-          <div class="fixed-checkbox ${fixedItemForm.prepaid ? 'checked' : ''}">${fixedItemForm.prepaid ? icon('check', 13, '#fff') : ''}</div>
-          <span>선결제 여부</span>
-        </div>
-        <button class="submit-btn" style="background:var(--stamp-red)" onclick="submitFixedItem()">${fixedEditingItemId ? '수정하기' : '추가하기'}</button>
-      </div>
-    </div>
+    const actualMonthTotal = totals.actual + totals.leave;
+    const planMonthTotal = totals.plan;
+    const compDays = (totals.holiday/480).toFixed(3);
+    let dinnerDaysCount = 0;
+    for(let d=1; d<=nDays; d++){
+      const dstr2 = dateKey(y,m,d);
+      const dow2 = new Date(y, m-1, d).getDay();
+      const dd = computeDay(dow2, effectiveDayData(getDayData(dstr2)), isFamilyDay(y,m,d));
+      if(dd.dinner>0) dinnerDaysCount++;
+    }
+    const mealTotal = dinnerDaysCount * MEAL_RATE;
+    const balanceMinutes = cumulative;
+    const balanceMax = 8*60*3;
+    const pct = Math.max(-100, Math.min(100, (balanceMinutes/balanceMax)*100));
 
-    <div class="overlay center ${fixedGroupFormOpen ? 'open' : ''}" onclick="closeAddGroupForm()">
-      <div class="modal modal-confirm" onclick="event.stopPropagation()">
-        <p class="confirm-text" style="font-weight:700;">새 고정비 그룹</p>
-        <input id="fg-name" type="text" placeholder="그룹 이름 (예: 은지 고정비)" class="field">
-        <div class="confirm-actions">
-          <button class="btn-cancel" onclick="closeAddGroupForm()">취소</button>
-          <button class="btn-delete" style="background:var(--stamp-green)" onclick="submitAddGroup()">추가</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay center ${fixedConfirmDelete ? 'open' : ''}" onclick="cancelDeleteItem()">
-      <div class="modal modal-confirm" onclick="event.stopPropagation()">
-        <p class="confirm-text">이 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" onclick="cancelDeleteItem()">취소</button>
-          <button class="btn-delete" onclick="doDeleteItem()">삭제</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay center ${fixedConfirmDeleteGroup ? 'open' : ''}" onclick="cancelDeleteGroup()">
-      <div class="modal modal-confirm" onclick="event.stopPropagation()">
-        <p class="confirm-text">이 그룹과 그 안의 모든 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" onclick="cancelDeleteGroup()">취소</button>
-          <button class="btn-delete" onclick="doDeleteGroup()">삭제</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function render(){
-  const {monthEntries, monthIncome, monthExpense, totalBalance, catBreakdown, paymentBreakdown} = computeData();
-  const activeCats = form.type === 'income' ? INCOME_CATS : expenseCats;
-
-  const rowsHtml = renderRows(monthEntries, '이번 달 기록이 없습니다. 아래 + 버튼으로 첫 기록을 남겨보세요.');
-
-  const breakdownHtml = catBreakdown.length === 0 ? '' : `
-    <div class="breakdown">
-      <p class="section-label" style="margin:0 0 8px;">카테고리별 지출</p>
-      <div class="breakdown-card">
-        ${catBreakdown.map(c=>{
-          const pct = monthExpense ? Math.round((c.amount/monthExpense)*100) : 0;
-          return `
-          <div class="bd-row">
-            <div class="bd-top">
-              <span class="bd-name">${escapeHtml(c.name)}</span>
-              <span class="bd-val mono">${fmt(c.amount)}원 · ${pct}%</span>
-            </div>
-            <div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-
-  const paymentTabHtml = `
-    <div class="breakdown">
-      <p class="section-label" style="margin:0 0 8px;">${monthLabel(currentMonth)} 결제 수단별 지출</p>
-      <div class="breakdown-card">
-        ${paymentBreakdown.length === 0
-          ? `<div class="ledger-empty" style="padding:8px 0;">이번 달 지출 기록이 없습니다.</div>`
-          : paymentBreakdown.map(p=>{
-              const pct = monthExpense ? Math.round((p.amount/monthExpense)*100) : 0;
-              const active = selectedPaymentMethod === p.name;
-              return `
-              <div class="bd-row payment-row ${active ? 'active' : ''}" onclick="selectPaymentFilter('${p.name}')">
-                <div class="pay-icon">${icon(paymentIcon(p.name), 15, active ? 'var(--accent)' : 'var(--stamp-red)')}</div>
-                <div style="flex:1; min-width:0;">
-                  <div class="bd-top">
-                    <span class="bd-name">${escapeHtml(p.name)}</span>
-                    <span class="bd-val mono">${fmt(p.amount)}원 · ${pct}% · ${p.count}건</span>
-                  </div>
-                  <div class="bd-track"><div class="bd-fill" style="width:${pct}%; ${active ? 'background:var(--accent);' : ''}"></div></div>
-                </div>
-              </div>`;
-            }).join('')}
-      </div>
-      ${paymentBreakdown.length > 0 ? `
-      <div class="payment-total mono">
-        <span>합계</span><span>${fmt(monthExpense)}원</span>
-      </div>` : ''}
-    </div>
-    ${selectedPaymentMethod ? `
-      <div style="padding:0 20px 20px;">
-        <p class="section-label" style="margin:0 0 6px;">${escapeHtml(selectedPaymentMethod)} 결제 내역</p>
-        <div class="ledger">${renderRows(monthEntries.filter(e=>e.payment === selectedPaymentMethod), '해당 결제 수단으로 기록된 지출이 없습니다.')}</div>
-      </div>
-    ` : ''}`;
-
-  const ledgerHtml = `
-    <div class="cover">
-      <div class="ring1"></div><div class="ring2"></div>
-      <button class="settings-btn" onclick="openSettings()">${icon('settings',18,'rgba(255,255,255,0.85)')}</button>
-      <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
-      <h1 class="serif">가계부</h1>
-      <p class="balance-label">총 잔액</p>
-      <p class="balance-value mono">${fmt(totalBalance)}<span>원</span></p>
-    </div>
-
-    <div class="month-nav">
-      <button onclick="changeMonth(-1)">${icon('chevron-left',20)}</button>
-      <span class="serif">${monthLabel(currentMonth)}</span>
-      <button onclick="changeMonth(1)">${icon('chevron-right',20)}</button>
-    </div>
-
-    <div class="tab-bar">
-      <button class="tab-btn ${activeTab==='ledger' ? 'active' : ''}" onclick="switchTab('ledger')">내역</button>
-      <button class="tab-btn ${activeTab==='payment' ? 'active' : ''}" onclick="switchTab('payment')">결제 수단별</button>
-    </div>
-
-    <div class="summary">
-      <div class="card income"><p>이번 달 수입</p><p class="mono">+${fmt(monthIncome)}원</p></div>
-      <div class="card expense"><p>이번 달 지출</p><p class="mono">-${fmt(monthExpense)}원</p></div>
-    </div>
-
-    ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
-
-    ${activeTab === 'ledger' ? `
-      <p class="section-label">거래 내역</p>
-      <div class="ledger">${rowsHtml}</div>
-      ${breakdownHtml}
-    ` : paymentTabHtml}
-
-    <div class="fab-wrap">
-      <button class="fab-income" onclick="openForm('income')">${icon('plus',14)} 수입</button>
-      <button class="fab-expense" onclick="openForm('expense')">${icon('plus',16)} 지출</button>
-    </div>
-
-    <div class="overlay ${formOpen ? 'open' : ''}" onclick="closeForm()">
-      <div class="modal" onclick="event.stopPropagation()">
-        <div class="modal-head">
-          <h2 class="serif">${form.type==='income' ? (editingId ? '수입 수정' : '수입 기록') : ''}</h2>
-          <button onclick="closeForm()">${icon('x',20)}</button>
-        </div>
-        ${form.type === 'expense' ? `<p class="field-label">지출 분류</p>` : ''}
-        <div class="cat-grid">
-          ${activeCats.map(c=>{
-            const active = form.category === c.name;
-            const cls = active ? (form.type==='income' ? 'active-income' : 'active-expense') : '';
-            return `<div class="cat-opt ${cls}" onclick="selectCategory('${c.name}')">${icon(c.icon,15)} ${c.name}</div>`;
-          }).join('')}
-        </div>
-        ${form.type === 'expense' ? `
-        <p class="field-label">결제 방식</p>
-        <div class="pay-grid">
-          ${paymentMethods.map(p=>{
-            const active = form.payment === p;
-            return `<div class="pay-opt ${active ? 'active' : ''}" onclick="selectPayment('${p}')">${icon(paymentIcon(p),14)} ${p}</div>`;
-          }).join('')}
-        </div>` : ''}
-        <div class="field-row">
-          <input id="f-date" type="date" class="field mono" value="${form.date}">
-          ${form.type === 'expense' ? `<input id="f-time" type="time" class="field mono" value="${form.time || currentTimeStr()}">` : ''}
-        </div>
-        <input id="f-amount" type="text" inputmode="numeric" placeholder="금액 (원)" class="field mono" value="${form.amount}">
-        <input id="f-memo" type="text" placeholder="메모 (선택)" class="field" value="${form.memo}">
-        <button class="submit-btn" style="background:${form.type==='income' ? 'var(--stamp-green)' : 'var(--stamp-red)'}" onclick="submitForm()">${editingId ? '수정하기' : '기록하기'}</button>
-      </div>
-    </div>
-
-    <div class="overlay center ${confirmDeleteId ? 'open' : ''}" onclick="cancelDelete()">
-      <div class="modal modal-confirm" onclick="event.stopPropagation()">
-        <p class="confirm-text">이 기록을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" onclick="cancelDelete()">취소</button>
-          <button class="btn-delete" onclick="doDelete()">삭제</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay ${settingsOpen ? 'open' : ''}" onclick="closeSettings()">
-      <div class="modal" onclick="event.stopPropagation()" style="max-height:78vh; overflow-y:auto;">
-        <div class="modal-head">
-          <h2 class="serif">항목 관리</h2>
-          <button onclick="closeSettings()">${icon('x',20)}</button>
-        </div>
-        <div class="tab-bar" style="padding:0 0 14px;">
-          <button class="tab-btn ${settingsTab==='category' ? 'active' : ''}" onclick="switchSettingsTab('category')">지출 분류</button>
-          <button class="tab-btn ${settingsTab==='payment' ? 'active' : ''}" onclick="switchSettingsTab('payment')">결제 방식</button>
-        </div>
-        ${settingsTab === 'category' ? `
-          <div class="settings-list">
-            ${expenseCats.map(c => `
-              <div class="settings-row">
-                <span class="settings-row-icon">${icon(c.icon,15)}</span>
-                <input type="text" class="settings-name-input" value="${escapeHtml(c.name)}" onchange="renameCategory('${escapeHtml(c.name)}', this.value)">
-                <button class="settings-icon-btn" onclick="askDeleteCategory('${escapeHtml(c.name)}')">${icon('trash-2',14)}</button>
-              </div>
-            `).join('')}
-          </div>
-          <div class="add-row">
-            <input id="new-cat-name" type="text" class="field" placeholder="새 지출 분류 이름">
-            <button onclick="addCategory()">추가</button>
-          </div>
-        ` : `
-          <div class="settings-list">
-            ${paymentMethods.map(p => `
-              <div class="settings-row">
-                <span class="settings-row-icon">${icon(paymentIcon(p),15)}</span>
-                <input type="text" class="settings-name-input" value="${escapeHtml(p)}" onchange="renamePaymentMethod('${escapeHtml(p)}', this.value)">
-                <button class="settings-icon-btn" onclick="askDeletePayment('${escapeHtml(p)}')">${icon('trash-2',14)}</button>
-              </div>
-            `).join('')}
-          </div>
-          <div class="add-row">
-            <input id="new-pay-name" type="text" class="field" placeholder="새 결제 방식 이름">
-            <button onclick="addPaymentMethod()">추가</button>
-          </div>
-        `}
-      </div>
-    </div>
-
-    <div class="overlay center ${deleteCategoryTarget ? 'open' : ''}" onclick="cancelDeleteCategory()">
-      <div class="modal modal-confirm" onclick="event.stopPropagation()">
-        <p class="confirm-text">'${deleteCategoryTarget ? escapeHtml(deleteCategoryTarget) : ''}' 분류를 삭제할까요? 이미 기록된 지출의 분류는 그대로 남아요.</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" onclick="cancelDeleteCategory()">취소</button>
-          <button class="btn-delete" onclick="doDeleteCategory()">삭제</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay center ${deletePaymentTarget ? 'open' : ''}" onclick="cancelDeletePayment()">
-      <div class="modal modal-confirm" onclick="event.stopPropagation()">
-        <p class="confirm-text">'${deletePaymentTarget ? escapeHtml(deletePaymentTarget) : ''}' 결제 방식을 삭제할까요? 이미 기록된 내역의 결제 방식은 그대로 남아요.</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" onclick="cancelDeletePayment()">취소</button>
-          <button class="btn-delete" onclick="doDeletePayment()">삭제</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const placeholders = {
-    salary: {title: '월급분류기', desc: '월급이 들어오면 항목별로 자동 분류해주는 기능을 준비하고 있어요.'},
-  };
-  function placeholderHtml(key){
-    const p = placeholders[key];
     return `
-      <div class="cover" style="padding-bottom:28px;">
-        <div class="ring1"></div><div class="ring2"></div>
-        <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
-        <h1 class="serif">${p.title}</h1>
-      </div>
-      <div style="padding:40px 20px;">
-        <div class="breakdown-card" style="text-align:center; padding:32px 20px;">
-          <p style="color:var(--ink-faint); font-size:13px; line-height:1.6; margin:0;">${p.desc}<br>어떤 기능이 있으면 좋을지 알려주세요.</p>
+      <div class="top-grid">
+        <div>
+          <div class="card" style="margin-bottom:12px;">
+            <h2>규칙</h2>
+            <div class="legend">
+              <b>규칙</b> · 점심휴게: 11:30~12:30 중 근무한 만큼만 자동 차감 (예: 11:53 출근 → 37분) · 저녁휴게: 체류시간 11:30 이상이면 30분 추가 차감(저녁식대 ₩${MEAL_RATE.toLocaleString()} 고정 지급) · 자정 넘겨 퇴근 시 24:00을 더해 계산 · <b>매월 4번째 금요일은 자동으로 패밀리데이</b>(하늘색 실제근로 칸)로 지정되어, (체류시간-점심휴게-저녁휴게)가 4:00 이하면 +4:00, 4:00~8:00이면 8:00으로 고정, 8:00 초과면 그대로 적용 · 근무 현황은 (실제근로+연차시간-계획근무)의 월 누적값이며, 계획근무가 없는 날(휴일)에 발생한 실제근로는 근무현황에 반영되지 않고 8시간=1일 기준으로 대체휴일에만 반영됨 · 출근만 입력되고 퇴근이 비어있으면 하늘색으로 지금 시각이 임시로 표시되며(저장은 안 됨), 직접 입력하면 확정 저장됩니다
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>연차or휴일</th>
+                  <th>계획근무</th>
+                  <th>출근</th>
+                  <th>퇴근</th>
+                  <th>체류시간</th>
+                  <th>점심휴게</th>
+                  <th>저녁휴게</th>
+                  <th>실제근로</th>
+                  <th>휴일근로</th>
+                  <th>근무 현황</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.join('')}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" class="label-cell">합계</td>
+                  <td class="mono">${minToStr(totals.plan)}</td>
+                  <td colspan="2"></td>
+                  <td class="mono">${minToStr(totals.dur)}</td>
+                  <td class="mono">${minToStr(totals.lunch)}</td>
+                  <td class="mono">${minToStr(totals.dinner)}</td>
+                  <td class="mono">${minToStr(totals.actual)}</td>
+                  <td class="mono">${minToStr(totals.holiday)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>정산</h2>
+          <div class="summary-item"><span class="label">월 근무시간 (실제)</span><span class="val mono">${minToStr(actualMonthTotal)}</span></div>
+          <div class="summary-item"><span class="label">월 근무시간 (계획)</span><span class="val mono">${minToStr(planMonthTotal)}</span></div>
+          <div class="summary-item"><span class="label">대체휴일</span><span class="val mono">${compDays}</span></div>
+          <div class="summary-item"><span class="label">저녁식대</span><span class="val mono">₩${mealTotal.toLocaleString()}</span></div>
+
+          <div class="balance-wrap">
+            <div class="summary-item" style="border:none;padding-bottom:4px;"><span class="label">근무 밸런스</span><span class="val mono ${balanceMinutes>=0?'diff-pos':'diff-neg'}">${minToStr(balanceMinutes, true)}</span></div>
+            <div class="balance-track">
+              <div class="balance-center"></div>
+              ${balanceMinutes>=0
+                ? `<div class="balance-fill pos" style="width:${Math.abs(pct)/2}%;"></div>`
+                : `<div class="balance-fill neg" style="width:${Math.abs(pct)/2}%;"></div>`}
+            </div>
+            <div class="balance-label"><span>부족</span><span>초과</span></div>
+          </div>
         </div>
       </div>
     `;
   }
 
-  let tabContent;
-  if(topTab === 'ledger') tabContent = ledgerHtml;
-  else if(topTab === 'fixed') tabContent = renderFixedTab();
-  else tabContent = placeholderHtml(topTab);
+  function attachAttendanceHandlers(){
+    document.getElementById('prev-month').onclick = async ()=>{
+      state.month -= 1;
+      if(state.month<1){ state.month=12; state.year -=1; }
+      await loadMonth();
+      render();
+    };
+    document.getElementById('next-month').onclick = async ()=>{
+      state.month += 1;
+      if(state.month>12){ state.month=1; state.year +=1; }
+      await loadMonth();
+      render();
+    };
 
-  document.getElementById('app').innerHTML = `
-    <div class="top-tab-bar">
-      <button class="top-tab-btn ${topTab==='ledger' ? 'active' : ''}" onclick="switchTopTab('ledger')">가계부</button>
-      <button class="top-tab-btn ${topTab==='fixed' ? 'active' : ''}" onclick="switchTopTab('fixed')">고정비</button>
-      <button class="top-tab-btn ${topTab==='salary' ? 'active' : ''}" onclick="switchTopTab('salary')">월급분류기</button>
-    </div>
-    ${tabContent}
-  `;
-}
+    document.querySelectorAll('input.time-input').forEach(el=>{
+      el.addEventListener('focus', ()=>{ el.select(); });
+      el.addEventListener('input', ()=>{
+        let v = el.value.replace(/[^0-9]/g,'');
+        if(v.length>4) v = v.slice(0,4);
+        if(v.length>=3) v = v.slice(0,2)+':'+v.slice(2);
+        el.value = v;
+        el.classList.remove('invalid');
+        el.classList.remove('live-preview');
+      });
+    });
 
-function changeMonth(delta){
-  currentMonth = shiftMonth(currentMonth, delta);
-  selectedPaymentMethod = null;
-  render();
-}
+    document.querySelectorAll('[data-field]').forEach(el=>{
+      el.addEventListener('change', async (e)=>{
+        const dstr = e.target.getAttribute('data-date');
+        const field = e.target.getAttribute('data-field');
+        const val = e.target.value;
+        if((field==='checkIn' || field==='checkOut') && val!=='' && !isValidTime24(val)){
+          e.target.classList.add('invalid');
+          return;
+        }
+        const data = getDayData(dstr);
+        data[field] = val;
+        await saveDay(dstr, data);
+        render();
+      });
+    });
+  }
 
-function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+  // ---------------- 렌더링: To do list 탭 ----------------
 
-(async function init(){
-  await loadEntries();
-  await loadFixedGroups();
-  await loadCategories();
-  await loadPaymentMethods();
-  render();
+  function renderTodoHtml(){
+    if(state.todoCategories.length === 0){
+      return `
+        <div class="card" style="margin-bottom:12px;">
+          <h2>소분류 추가</h2>
+          <div class="new-cat-row">
+            <input type="text" id="newCategoryInput" placeholder="예: 프로젝트A" maxlength="40">
+            <button id="addCategoryBtn" class="btn-primary">추가</button>
+          </div>
+        </div>
+        <div class="card"><div class="todo-empty">아직 소분류가 없어요. 위에서 하나 추가해보세요.</div></div>
+      `;
+    }
+
+    const cats = state.todoCategories.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const catBlocks = cats.map(cat=>{
+      const items = state.todoItems
+        .filter(i=>i.category_id === cat.id)
+        .slice()
+        .sort((a,b)=>{
+          if(!a.due_date && !b.due_date) return 0;
+          if(!a.due_date) return 1;
+          if(!b.due_date) return -1;
+          return a.due_date.localeCompare(b.due_date);
+        });
+
+      const itemRows = items.map(item=>`
+        <div class="todo-row" data-item="${item.id}">
+          <button class="status-toggle status-${item.status}" data-item="${item.id}" title="상태 변경">${STATUS_ICON[item.status]}</button>
+          <input type="date" class="todo-due-edit" data-item="${item.id}" value="${item.due_date || ''}">
+          <input type="text" class="todo-content-edit${item.status==='done' ? ' done' : ''}" data-item="${item.id}" value="${item.content.replace(/"/g,'&quot;')}" maxlength="200">
+          <button class="todo-delete" data-item="${item.id}" title="삭제">×</button>
+        </div>
+      `).join('') || `<div class="todo-empty">할 일이 없어요.</div>`;
+
+      return `
+        <div class="card todo-category" data-cat="${cat.id}" style="margin-bottom:12px;">
+          <h2>${cat.name}</h2>
+          <div class="todo-cat-items">${itemRows}</div>
+          <div class="todo-row todo-add-row">
+            <span></span>
+            <input type="date" class="todo-due-input" data-cat="${cat.id}">
+            <input type="text" class="todo-content-input" data-cat="${cat.id}" placeholder="할 일을 입력하고 Enter" maxlength="200">
+            <button class="btn-primary todo-add-btn" data-cat="${cat.id}" style="padding:6px 10px;">추가</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="card" style="margin-bottom:12px;">
+        <h2>소분류 추가</h2>
+        <div class="new-cat-row">
+          <input type="text" id="newCategoryInput" placeholder="예: 프로젝트A" maxlength="40">
+          <button id="addCategoryBtn" class="btn-primary">추가</button>
+        </div>
+      </div>
+      <div class="todo-cat-list">${catBlocks}</div>
+    `;
+  }
+
+  function attachTodoHandlers(){
+    const newCatInput = document.getElementById('newCategoryInput');
+    const addCatBtn = document.getElementById('addCategoryBtn');
+    async function doAddCategory(){
+      const name = newCatInput.value.trim();
+      if(!name) return;
+      addCatBtn.disabled = true;
+      await addCategory(name);
+      addCatBtn.disabled = false;
+      render();
+    }
+    if(addCatBtn) addCatBtn.addEventListener('click', doAddCategory);
+    if(newCatInput) newCatInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doAddCategory(); });
+
+    document.querySelectorAll('.status-toggle').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-item');
+        const item = state.todoItems.find(i=>i.id===id);
+        if(!item) return;
+        const next = cycleStatus(item.status);
+        await updateTodoItem(id, { status: next });
+        render();
+      });
+    });
+
+    document.querySelectorAll('.todo-due-edit').forEach(el=>{
+      el.addEventListener('change', async ()=>{
+        const id = el.getAttribute('data-item');
+        await updateTodoItem(id, { due_date: el.value || null });
+        render();
+      });
+    });
+
+    document.querySelectorAll('.todo-content-edit').forEach(el=>{
+      el.addEventListener('change', async ()=>{
+        const id = el.getAttribute('data-item');
+        const val = el.value.trim();
+        if(!val) return;
+        await updateTodoItem(id, { content: val });
+        render();
+      });
+    });
+
+    document.querySelectorAll('.todo-delete').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-item');
+        deleteTodoItem(id);
+      });
+    });
+
+    document.querySelectorAll('.todo-add-btn').forEach(btn=>{
+      const catId = btn.getAttribute('data-cat');
+      const contentEl = document.querySelector(`.todo-content-input[data-cat="${catId}"]`);
+      const dueEl = document.querySelector(`.todo-due-input[data-cat="${catId}"]`);
+      async function doAdd(){
+        const content = contentEl.value.trim();
+        if(!content) return;
+        btn.disabled = true;
+        await addTodoItem(catId, content, dueEl.value);
+        btn.disabled = false;
+        render();
+      }
+      btn.addEventListener('click', doAdd);
+      contentEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doAdd(); });
+    });
+  }
+
+  // ---------------- 렌더링: 전체 앱(탭 포함) ----------------
+
+  function renderApp(){
+    startLiveTick();
+    document.getElementById('app').innerHTML = `
+      <div class="header">
+        <div>
+          <h1>Aiden</h1>
+          <div class="sub">${state.tab==='attendance' ? '출퇴근 시간을 입력하면 근무 현황이 자동으로 계산돼요' : '소분류별로 할 일을 관리하세요'} · <span id="save-flag" class="save-flag">저장됨</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="user-chip">${state.user.name}님 <button id="logoutBtn">로그아웃</button></div>
+          ${state.tab==='attendance' ? `
+          <div class="month-nav">
+            <button id="prev-month">‹</button>
+            <span class="label mono">${state.year}년 ${state.month}월</span>
+            <button id="next-month">›</button>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <div class="tab-nav">
+        <button class="tab-btn ${state.tab==='attendance' ? 'active' : ''}" id="tabAttendance">근태 관리</button>
+        <button class="tab-btn ${state.tab==='todo' ? 'active' : ''}" id="tabTodo">To do list</button>
+      </div>
+
+      <div id="tabContent">
+        ${state.tab==='attendance' ? renderAttendanceHtml() : renderTodoHtml()}
+      </div>
+    `;
+
+    document.getElementById('logoutBtn').onclick = logout;
+    document.getElementById('tabAttendance').onclick = ()=>{ state.tab='attendance'; render(); };
+    document.getElementById('tabTodo').onclick = ()=>{ state.tab='todo'; render(); };
+
+    if(state.tab==='attendance') attachAttendanceHandlers();
+    else attachTodoHandlers();
+  }
+
+  function render(){
+    if(!state.user){
+      if(state.authView === 'signup') renderSignup();
+      else if(state.authView === 'changepin') renderChangePin();
+      else renderLogin();
+      return;
+    }
+    renderApp();
+  }
+
+  (async function init(){
+    const session = loadSession();
+    if(session && session.id){
+      state.user = session;
+      await Promise.all([loadMonth(), loadTodos()]);
+    }
+    render();
+  })();
 })();
 </script>
 </body>
