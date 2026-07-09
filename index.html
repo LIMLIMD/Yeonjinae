@@ -11,8 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="가계부">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1428A0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 <style>
   :root{
     --paper:#FFFFFF;
@@ -29,12 +28,12 @@
   body{
     margin:0;
     background:var(--paper);
-    font-family:'Noto Sans KR', sans-serif;
+    font-family:'Pretendard', sans-serif;
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
   }
-  .mono{font-family:'IBM Plex Mono', monospace; font-variant-numeric:tabular-nums;}
-  .serif{font-family:'Noto Serif KR', serif;}
+  .mono{font-family:'Pretendard', sans-serif; font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; letter-spacing:-0.01em;}
+  .serif{font-family:'Pretendard', sans-serif; font-weight:800; letter-spacing:-0.01em;}
   #app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; padding-bottom:110px;}
 
   /* Top-level app tabs */
