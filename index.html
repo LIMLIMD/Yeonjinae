@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가계부</title>
+<link rel="icon" type="image/png" href="favicon-32.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="가계부">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1428A0">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  :root{
+    --paper:#FFFFFF;
+    --paper-line:#E3E6EE;
+    --cover:#1428A0;
+    --cover-light:#2F5FDE;
+    --ink:#1B2233;
+    --ink-faint:#6B7280;
+    --stamp-red:#A8382C;
+    --stamp-green:#2C6E49;
+    --accent:#2F5FDE;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    font-family:'Pretendard', sans-serif;
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'Pretendard', sans-serif; font-variant-numeric:tabular-nums; letter-spacing:-0.01em;}
+  .serif{font-family:'Pretendard', sans-serif; font-weight:800; letter-spacing:-0.01em;}
+  #app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; padding-bottom:110px;}
+
+  /* Top-level app tabs */
+  .top-tab-bar{
+    display:flex; background:var(--paper); position:sticky; top:0; z-index:30;
+    border-bottom:1px solid var(--paper-line);
+  }
+  .top-tab-btn{
+    flex:1; padding:13px 4px; background:none; border:none; cursor:pointer;
+    font-size:13px; font-weight:500; color:var(--ink-faint);
+    border-bottom:2px solid transparent;
+  }
+  .top-tab-btn.active{color:var(--cover); font-weight:700; border-bottom-color:var(--accent);}
+
+  /* Cover */
+  .cover{
+    background:linear-gradient(160deg, var(--cover), var(--cover-light));
+    padding:32px 20px 24px;
+    position:relative;
+    overflow:hidden;
+  }
+  .cover .ring1{position:absolute; right:-30px; top:-30px; width:140px; height:140px; border-radius:9999px; border:1.5px solid rgba(255,255,255,0.25);}
+  .cover .ring2{position:absolute; right:10px; top:30px; width:90px; height:90px; border-radius:9999px; border:1px solid rgba(255,255,255,0.15);}
+  .settings-btn{position:absolute; top:16px; right:16px; background:none; border:none; cursor:pointer; padding:6px; display:flex;}
+  .eyebrow{color:rgba(255,255,255,0.65); letter-spacing:0.3em; font-size:11px; position:relative;}
+  .cover h1{color:#FFFFFF; font-size:30px; font-weight:700; margin:6px 0 0; position:relative;}
+  .balance-label{color:rgba(255,255,255,0.65); font-size:12px; margin:20px 0 2px; position:relative;}
+  .balance-value{color:#FFFFFF; font-size:34px; font-weight:600; letter-spacing:-0.02em; margin:0; position:relative;}
+  .balance-value span{font-size:16px; margin-left:4px;}
+
+  /* Month nav */
+  .month-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 20px; border-bottom:1px solid var(--paper-line);
+  }
+  .month-nav button{background:none; border:none; color:var(--ink); cursor:pointer; padding:6px; display:flex;}
+  .month-nav span{font-size:16px; font-weight:700;}
+
+  /* Summary cards */
+  .summary{display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px 20px;}
+  .card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .card p:first-child{color:var(--ink-faint); font-size:12px; margin:0 0 4px;}
+  .card p:last-child{font-size:18px; font-weight:600; margin:0;}
+  .card.income p:last-child{color:var(--stamp-green);}
+  .card.expense p:last-child{color:var(--stamp-red);}
+
+  .error-box{margin:0 20px 12px; padding:8px 12px; background:#FDECEA; color:var(--stamp-red); border-radius:8px; font-size:13px;}
+
+  /* Ledger list */
+  .section-label{color:var(--ink-faint); font-size:12px; margin:0 20px 6px; padding-top:4px;}
+  .ledger{background:#fff; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden; margin:0 20px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .ledger-empty{padding:24px; text-align:center; color:var(--ink-faint); font-size:13px;}
+  .ledger-row{display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px dashed var(--paper-line); cursor:pointer;}
+  .ledger-row:hover{background:#F5F7FC;}
+  .ledger-row:last-child{border-bottom:none;}
+  .cat-icon{
+    width:34px; height:34px; border-radius:9999px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--c); color:var(--c);
+  }
+  .row-main{flex:1; min-width:0;}
+  .row-top{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .row-top .cat-name{font-size:14px; font-weight:500;}
+  .row-top .row-date{color:var(--ink-faint); font-size:11px;}
+  .row-memo{color:var(--ink-faint); font-size:12px; margin:1px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .row-amt{text-align:right; flex-shrink:0;}
+  .row-amt p{margin:0;}
+  .row-amt .amt{font-size:14px; font-weight:600;}
+  .row-amt .bal{color:var(--ink-faint); font-size:10px;}
+  .del-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; flex-shrink:0; margin-left:2px; padding:4px;}
+
+  /* Tab bar */
+  .tab-bar{display:flex; gap:8px; padding:14px 20px 0;}
+  .tab-btn{
+    flex:1; padding:9px; border-radius:9999px; border:1px solid var(--paper-line);
+    background:#fff; color:var(--ink-faint); font-size:13px; font-weight:500; cursor:pointer;
+  }
+  .tab-btn.active{background:var(--cover); border-color:var(--cover); color:#FFFFFF; font-weight:700;}
+
+  /* Category breakdown */
+  .breakdown{padding:20px;}
+  .breakdown-card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .bd-row{margin-bottom:12px;}
+  .bd-row:last-child{margin-bottom:0;}
+  .bd-top{display:flex; justify-content:space-between; margin-bottom:4px;}
+  .bd-top .bd-name{font-size:13px;}
+  .bd-top .bd-val{color:var(--ink-faint); font-size:12px;}
+  .bd-track{background:var(--paper-line); height:6px; border-radius:3px; overflow:hidden;}
+  .bd-fill{background:var(--stamp-red); height:100%;}
+  .payment-row{display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:6px; margin:-6px -6px 6px; border-radius:8px;}
+  .payment-row:hover{background:#F5F7FC;}
+  .payment-row.active{background:#EAF0FE;}
+  .pay-icon{color:var(--stamp-red); flex-shrink:0; margin-top:2px;}
+  .payment-total{
+    display:flex; justify-content:space-between; margin-top:14px; padding-top:12px;
+    border-top:1px solid var(--paper-line); font-size:13px; font-weight:700; color:var(--ink);
+  }
+
+  /* Payment tag on ledger row */
+  .row-payment{
+    color:var(--ink-faint); font-size:10px; border:1px solid var(--paper-line);
+    border-radius:9999px; padding:1px 7px; flex-shrink:0;
+  }
+
+  /* Payment chips in form */
+  .pay-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;}
+  .pay-opt{display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:8px; font-size:13px; background:#fff; border:1px solid var(--paper-line); color:var(--ink); cursor:pointer;}
+  .pay-opt.active{border-color:var(--accent); color:var(--accent); background:#EAF0FE;}
+
+  /* Floating buttons */
+  .fab-wrap{position:fixed; bottom:20px; right:max(20px, calc(50% - 220px)); display:flex; flex-direction:column; gap:8px; align-items:flex-end; z-index:40;}
+  .fab-income{background:#fff; border:1.5px solid var(--stamp-green); color:var(--stamp-green); border-radius:9999px; padding:8px 16px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+  .fab-expense{background:var(--stamp-red); color:#fff; border:none; border-radius:9999px; padding:12px 20px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 4px 12px rgba(168,56,44,0.35);}
+  .fab-wrap button:active{transform:scale(0.96);}
+
+  /* Modal */
+  .overlay{position:fixed; inset:0; background:rgba(15,20,15,0.4); z-index:50; display:none; align-items:flex-end; justify-content:center;}
+  .overlay.open{display:flex;}
+  .overlay.center{align-items:center; padding:0 32px;}
+  .modal{width:100%; max-width:480px; background:var(--paper); border-top-left-radius:20px; border-top-right-radius:20px; padding:20px;}
+  .modal-confirm{max-width:360px; background:#fff; border-radius:14px;}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .modal-head h2{font-size:18px; font-weight:700; margin:0;}
+  .modal-head button{background:none; border:none; color:var(--ink-faint); cursor:pointer;}
+  .cat-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;}
+  .cat-opt{display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; font-size:13px; background:#fff; border:1px solid var(--paper-line); color:var(--ink); cursor:pointer;}
+  .cat-opt.active-expense{border-color:var(--stamp-red); color:var(--stamp-red);}
+  .cat-opt.active-income{border-color:var(--stamp-green); color:var(--stamp-green);}
+  .field{width:100%; padding:10px 12px; margin-bottom:12px; border:1px solid var(--paper-line); border-radius:8px; font-size:14px; font-family:inherit;}
+  .field.mono{font-size:16px;}
+  .field-row{display:flex; gap:8px;}
+  .field-row .field{flex:1; min-width:0;}
+  .field-label{color:var(--ink-faint); font-size:12px; margin:0 0 6px;}
+  .submit-btn{width:100%; padding:14px; border:none; border-radius:9999px; font-size:15px; font-weight:700; color:#fff; cursor:pointer;}
+  .confirm-text{font-size:14px; margin:0 0 16px;}
+  .confirm-actions{display:flex; gap:8px;}
+  .confirm-actions button{flex:1; padding:10px; border-radius:8px; font-size:13px; cursor:pointer;}
+  .btn-cancel{background:#fff; border:1px solid var(--paper-line); color:var(--ink);}
+  .btn-delete{background:var(--stamp-red); border:none; color:#fff;}
+  .loading{display:flex; align-items:center; justify-content:center; min-height:100vh; color:var(--ink-faint); font-size:14px;}
+
+  /* Fixed expenses (고정비) */
+  .fixed-card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden; margin-bottom:16px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .fixed-card-head{display:flex; justify-content:space-between; align-items:flex-start; padding:14px 16px; border-bottom:1px solid var(--paper-line); background:#F5F7FC;}
+  .fg-name{font-size:14px; font-weight:700; color:var(--ink); margin:0;}
+  .fg-count{font-size:11px; color:var(--ink-faint); margin:2px 0 0;}
+  .fg-total{font-size:15px; font-weight:700; color:var(--stamp-red); margin:0;}
+  .fg-del-btn{background:none; border:none; color:var(--ink-faint); font-size:11px; text-decoration:underline; cursor:pointer; margin-top:4px; padding:0;}
+  .fixed-row{display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px dashed var(--paper-line); cursor:pointer;}
+  .fixed-row:hover{background:#F5F7FC;}
+  .fixed-row:last-child{border-bottom:none;}
+  .fixed-checkbox{
+    width:20px; height:20px; flex-shrink:0; border-radius:5px; border:1.5px solid var(--paper-line);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; background:#fff;
+  }
+  .fixed-checkbox.checked{background:var(--stamp-green); border-color:var(--stamp-green);}
+  .fixed-main{flex:1; min-width:0;}
+  .fixed-name-row{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .fixed-name{font-size:14px; color:var(--ink); margin:0;}
+  .pay-tag{font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; border:1px solid; white-space:nowrap;}
+  .fixed-meta{color:var(--ink-faint); font-size:11px; margin:2px 0 0;}
+  .fixed-amt{font-size:14px; font-weight:600; color:var(--ink); flex-shrink:0;}
+  .fixed-add-btn{
+    width:100%; padding:12px; background:none; border:none; border-top:1px dashed var(--paper-line);
+    color:var(--ink-faint); font-size:13px; cursor:pointer;
+  }
+  .fixed-add-btn:hover{background:#F5F7FC;}
+  .fixed-total-row{
+    display:flex; justify-content:space-between; padding:12px 16px; border-top:1px solid var(--paper-line);
+    background:#F5F7FC; font-size:13px; font-weight:700; color:var(--ink);
+  }
+  .asset-date-row{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 16px;
+    border-bottom:1px solid var(--paper-line); font-size:12px; color:var(--ink-faint); background:#F5F7FC;
+  }
+  .asset-date-row input{border:1px solid var(--paper-line); border-radius:6px; padding:4px 8px; font-size:12px; color:var(--ink); font-family:inherit;}
+  .add-group-btn{
+    width:100%; padding:12px; background:#fff; border:1px dashed var(--paper-line); border-radius:10px;
+    color:var(--ink-faint); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .prepaid-row{display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer; font-size:13px; color:var(--ink);}
+
+  /* Settings: category & payment method management */
+  .settings-list{max-height:260px; overflow-y:auto; margin-bottom:12px;}
+  .fixed-check-row{
+    display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--paper-line);
+    font-size:13px; color:var(--ink); cursor:pointer;
+  }
+  .fixed-check-row:last-child{border-bottom:none;}
+  .fixed-check-row input[type="checkbox"]{flex-shrink:0; width:16px; height:16px;}
+  .fixed-check-name{flex:1; min-width:0;}
+  .salary-total-row{
+    display:flex; justify-content:space-between; align-items:center; padding:12px 14px; margin-bottom:14px;
+    background:#F5F7FC; border-radius:8px; font-size:14px; font-weight:700; color:var(--ink);
+  }
+  .settings-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--paper-line);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row-icon{color:var(--ink-faint); flex-shrink:0; display:flex;}
+  .settings-name-input{
+    flex:1; min-width:0; border:1px solid transparent; background:none; padding:6px 8px; border-radius:6px;
+    font-size:14px; color:var(--ink); font-family:inherit;
+  }
+  .settings-name-input:focus{border-color:var(--paper-line); background:#fff; outline:none;}
+  .settings-icon-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:4px; flex-shrink:0;}
+  .add-row{display:flex; gap:8px;}
+  .add-row .field{flex:1; margin-bottom:0;}
+  .add-row button{
+    padding:0 16px; border:none; border-radius:8px; background:var(--accent); color:#fff;
+    font-size:13px; font-weight:600; cursor:pointer;
+  }
+
+  svg{display:block;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading" id="loading">불러오는 중...</div>
+</div>
+
+<script>
+function getDefaultExpenseCats(){
+  return [
+    {name:"식비", icon:"utensils"},
+    {name:"생활용품", icon:"shopping-bag"},
+    {name:"주거", icon:"home"},
+    {name:"교통", icon:"car"},
+    {name:"여행", icon:"luggage"},
+    {name:"건강", icon:"heart-pulse"},
+    {name:"부모님", icon:"users"},
+    {name:"문화생활", icon:"film"},
+    {name:"경조사", icon:"gift"},
+    {name:"패션/미용", icon:"shirt"},
+  ];
+}
+function getDefaultPaymentMethods(){
+  return ["현금", "현대카드", "하나카드", "삼성카드"];
+}
+const INCOME_CATS = [
+  {name:"급여", icon:"wallet"},
+  {name:"부수입", icon:"trending-up"},
+  {name:"기타", icon:"more-horizontal"},
+];
+let expenseCats = [];
+let paymentMethods = [];
+
+const ICONS = {
+  "utensils": '<path d="M3 2v7c0 1.1.9 2 2 2h0a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
+  "car": '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
+  "home": '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  "smartphone": '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  "heart-pulse": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>',
+  "film": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M17 7.5h4M3 12h18M3 16.5h4M17 16.5h4"/>',
+  "shopping-bag": '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  "more-horizontal": '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  "wallet": '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
+  "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+  "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+  "trash-2": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  "luggage": '<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M4 12h16"/><path d="M9 20v1"/><path d="M15 20v1"/>',
+  "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  "gift": '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8"/><path d="M16.5 8a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8"/>',
+  "credit-card": '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  "banknote": '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  "check": '<polyline points="20 6 9 17 4 12"/>',
+  "tag": '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
+  "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  "shirt": '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 .55.45 1 1 1h10c.55 0 1-.45 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+};
+function icon(name, size, color){
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size||16}" height="${size||16}" viewBox="0 0 24 24" fill="none" stroke="${color||'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;
+}
+
+// Storage wrapper:
+// - Inside a Claude artifact, uses window.storage.
+// - Outside Claude (this file opened/hosted directly), syncs with Supabase so data
+//   is shared across devices/browsers, and falls back to localStorage if the
+//   network/Supabase call fails (so the app still works offline).
+const SUPABASE_URL = 'https://djeczuzsrmfaktiuqhqs.supabase.co/rest/v1/';
+const SUPABASE_KEY = 'sb_publishable_yntqlWZfKgUnyrDn0vSVmQ_uda29sEP';
+
+async function storageGet(key){
+  if(typeof window.storage !== 'undefined' && window.storage){
+    return await window.storage.get(key, false);
+  }
+  try{
+    const res = await fetch(`${SUPABASE_URL}app_storage?key=eq.${encodeURIComponent(key)}&select=value`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if(!res.ok) throw new Error('supabase get failed');
+    const rows = await res.json();
+    if(rows && rows.length > 0){
+      const value = JSON.stringify(rows[0].value);
+      localStorage.setItem(key, value); // keep a local cache for offline use
+      return {key, value, shared:false};
+    }
+    return null;
+  }catch(e){
+    const v = localStorage.getItem(key);
+    return v !== null ? {key, value: v, shared:false} : null;
+  }
+}
+async function storageSet(key, value){
+  if(typeof window.storage !== 'undefined' && window.storage){
+    return await window.storage.set(key, value, false);
+  }
+  localStorage.setItem(key, value); // always cache locally first, so data is never lost
+  try{
+    const res = await fetch(`${SUPABASE_URL}app_storage?on_conflict=key`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([{key, value: JSON.parse(value), updated_at: new Date().toISOString()}]),
+    });
+    if(!res.ok) throw new Error('supabase set failed: ' + res.status);
+  }catch(e){
+    // Cloud sync failed (offline / network issue), but the data is safe in
+    // localStorage on this device, so don't alarm the user — just log it.
+    console.warn('Supabase sync failed, saved locally instead:', e);
+  }
+  return {key, value, shared:false};
+}
+
+let entries = [];
+let currentMonth = todayStr().slice(0,7);
+let formOpen = false;
+let form = {type:"expense", date:todayStr(), time:currentTimeStr(), category:"식비", payment:"현대카드", amount:"", memo:""};
+let editingId = null;
+let confirmDeleteId = null;
+let errorMsg = "";
+let errorTimer = null;
+let activeTab = "ledger"; // 'ledger' | 'payment'
+let selectedPaymentMethod = null;
+let topTab = "ledger"; // 'ledger' | 'fixed' | 'salary'
+let settingsOpen = false;
+let settingsTab = "category"; // 'category' | 'payment'
+let deleteCategoryTarget = null;
+let deletePaymentTarget = null;
+
+// --- Fixed expenses (고정비) state ---
+let fixedGroups = [];
+let fixedItemFormOpen = false;
+let fixedItemForm = {groupId:null, name:'', day:'1', payment:'', amount:'', prepaid:false};
+let fixedEditingItemId = null;
+let fixedConfirmDelete = null; // {groupId, itemId}
+let fixedGroupFormOpen = false;
+let fixedConfirmDeleteGroup = null;
+let fixedActiveGroupId = null;
+
+function ensureFixedActiveGroup(){
+  if(!fixedGroups.find(g => g.id === fixedActiveGroupId)){
+    fixedActiveGroupId = fixedGroups.length ? fixedGroups[0].id : null;
+  }
+}
+
+// --- Assets (자산) state ---
+let assetItems = [];
+let assetUpdatedDate = '';
+let assetItemFormOpen = false;
+let assetItemForm = {name:'', amount:''};
+let assetEditingItemId = null;
+let assetConfirmDelete = null; // itemId
+
+// --- Salary management (월급 관리) state ---
+let salaryGroups = [];
+let salaryActiveGroupId = null;
+let salaryItemFormOpen = false;
+let salaryItemForm = {groupId:null, name:'', amount:''};
+let salaryEditingItemId = null;
+let salaryConfirmDelete = null; // {groupId, itemId}
+let salaryGroupFormOpen = false;
+let salaryConfirmDeleteGroup = null;
+let salaryCheckedFixedIds = [];
+
+function getDefaultSalaryGroups(){
+  return [
+    {id:'s-eunji', name:'은지', items: []},
+    {id:'s-yeonjo', name:'연조', items: []},
+  ];
+}
+function ensureSalaryActiveGroup(){
+  if(!salaryGroups.find(g => g.id === salaryActiveGroupId)){
+    salaryActiveGroupId = salaryGroups.length ? salaryGroups[0].id : null;
+  }
+}
+
+function getDefaultFixedGroups(){
+  const g = (id) => id;
+  return [
+    {
+      id: 'g-eunji',
+      name: '은지',
+      items: [
+        {id:'ej-1', name:'네이버플러스 멤버십', day:3, payment:'삼성카드', amount:4900, prepaid:false},
+        {id:'ej-2', name:'icloud', day:11, payment:'삼성카드', amount:14000, prepaid:false},
+        {id:'ej-3', name:'운전자보험', day:11, payment:'신한은행', amount:14030, prepaid:false},
+        {id:'ej-4', name:'휴대폰 통신비', day:11, payment:'삼성카드', amount:68250, prepaid:false},
+        {id:'ej-5', name:'카톡 이모티콘', day:13, payment:'삼성카드', amount:3900, prepaid:false},
+        {id:'ej-6', name:'톡서랍 플러스', day:13, payment:'삼성카드', amount:1900, prepaid:false},
+        {id:'ej-7', name:'애플뮤직', day:21, payment:'삼성카드', amount:13500, prepaid:false},
+        {id:'ej-8', name:'보험료', day:21, payment:'신한은행', amount:65000, prepaid:false},
+        {id:'ej-9', name:'IRP (퇴직연금)', day:21, payment:'신한은행', amount:200000, prepaid:false},
+        {id:'ej-10', name:'동기 계', day:21, payment:'신한은행', amount:20000, prepaid:false},
+        {id:'ej-11', name:'주택청약', day:21, payment:'신한은행', amount:100000, prepaid:false},
+        {id:'ej-12', name:'알뜰폰 요금제', day:26, payment:'삼성카드', amount:11000, prepaid:false},
+      ],
+    },
+    {
+      id: 'g-yeonjo',
+      name: '연조',
+      items: [
+        {id:'yj-1', name:'웨이브 + 티빙', day:10, payment:'하나카드', amount:19500, prepaid:false},
+        {id:'yj-2', name:'인터넷비', day:11, payment:'하나카드', amount:41800, prepaid:false},
+        {id:'yj-3', name:'휴대폰 통신비', day:11, payment:'하나카드', amount:93900, prepaid:false},
+        {id:'yj-4', name:'넷플릭스', day:12, payment:'하나카드', amount:17000, prepaid:false},
+        {id:'yj-5', name:'운전자보험', day:21, payment:'신한은행', amount:16080, prepaid:false},
+        {id:'yj-6', name:'건강보험 (DB손해보험)', day:21, payment:'신한은행', amount:75380, prepaid:false},
+        {id:'yj-7', name:'청약', day:21, payment:'하나은행', amount:50000, prepaid:false},
+        {id:'yj-8', name:'남탕 계', day:22, payment:'토스뱅크', amount:30000, prepaid:false},
+        {id:'yj-9', name:'주차비', day:22, payment:'하나카드', amount:30000, prepaid:false},
+        {id:'yj-10', name:'삼성화재 (아파트화재보험)', day:23, payment:'하나은행', amount:8350, prepaid:false},
+        {id:'yj-11', name:'건강보험 (신한라이프)', day:25, payment:'신한은행', amount:32344, prepaid:false},
+        {id:'yj-12', name:'IRP (퇴직연금)', day:25, payment:'신한은행', amount:200000, prepaid:false},
+        {id:'yj-13', name:'휴대폰 보험', day:25, payment:'하나카드', amount:11200, prepaid:false},
+        {id:'yj-14', name:'톡서랍 플러스', day:30, payment:'하나카드', amount:1900, prepaid:false},
+      ],
+    },
+  ];
+}
+
+function todayStr(){
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off*60000);
+  return local.toISOString().slice(0,10);
+}
+function currentTimeStr(){
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function fmt(n){ return Math.round(n).toLocaleString('ko-KR'); }
+function monthKey(dateStr){ return dateStr.slice(0,7); }
+function monthLabel(key){
+  const [y,m] = key.split('-');
+  return `${y}년 ${parseInt(m,10)}월`;
+}
+function shiftMonth(key, delta){
+  const [y,m] = key.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function catIcon(type, name){
+  const list = type === 'income' ? INCOME_CATS : expenseCats;
+  const found = list.find(c => c.name === name);
+  return found ? found.icon : 'more-horizontal';
+}
+function paymentIcon(name){
+  return name === '현금' ? 'banknote' : 'credit-card';
+}
+const PAYMENT_COLORS = {
+  "현금": "#6B6A5C",
+  "현대카드": "#26313C",
+  "삼성카드": "#2C7A5B",
+  "하나카드": "#3E9B7C",
+  "하나은행": "#0F7A4A",
+  "신한은행": "#3E6FA8",
+  "신한카드": "#3E6FA8",
+  "토스뱅크": "#4B5FBD",
+  "국민은행": "#7A3E9B",
+  "우리은행": "#0D6E9E",
+  "카카오뱅크": "#B98A00",
+};
+const PAYMENT_COLOR_FALLBACK = ["#9B5DE5","#C9184A","#00838F","#8A5A00","#5C6BC0","#B0413E","#4E7A3D"];
+function hashStr(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+function paymentColor(name){
+  if(PAYMENT_COLORS[name]) return PAYMENT_COLORS[name];
+  return PAYMENT_COLOR_FALLBACK[hashStr(name) % PAYMENT_COLOR_FALLBACK.length];
+}
+
+async function loadEntries(){
+  try{
+    const res = await storageGet('ledger-entries');
+    if(res && res.value) entries = JSON.parse(res.value);
+  }catch(e){
+    // no data yet
+  }
+}
+async function persist(){
+  try{
+    await storageSet('ledger-entries', JSON.stringify(entries));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function loadFixedGroups(){
+  try{
+    const res = await storageGet('fixed-groups');
+    if(res && res.value){
+      fixedGroups = JSON.parse(res.value);
+      migrateFixedGroupNames();
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  fixedGroups = getDefaultFixedGroups();
+  await persistFixed();
+}
+function migrateFixedGroupNames(){
+  let changed = false;
+  fixedGroups.forEach(g => {
+    if(g.name === '은지 고정비'){ g.name = '은지'; changed = true; }
+    if(g.name === '연조 고정비'){ g.name = '연조'; changed = true; }
+  });
+  if(changed) persistFixed();
+}
+async function persistFixed(){
+  try{
+    await storageSet('fixed-groups', JSON.stringify(fixedGroups));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function loadFixedActiveGroup(){
+  try{
+    const res = await storageGet('fixed-active-group');
+    if(res && res.value) fixedActiveGroupId = JSON.parse(res.value);
+  }catch(e){
+    // no saved selection yet
+  }
+}
+async function persistFixedActiveGroup(){
+  try{
+    await storageSet('fixed-active-group', JSON.stringify(fixedActiveGroupId));
+  }catch(e){
+    // non-critical, ignore
+  }
+}
+async function loadAssets(){
+  try{
+    const res = await storageGet('asset-items');
+    if(res && res.value){
+      assetItems = JSON.parse(res.value);
+    } else {
+      throw new Error('no asset-items yet');
+    }
+  }catch(e){
+    // migrate from the old grouped structure if present, else start empty
+    try{
+      const old = await storageGet('asset-groups');
+      if(old && old.value){
+        const groups = JSON.parse(old.value);
+        assetItems = groups.flatMap(g => g.items || []);
+        assetUpdatedDate = (groups.find(g => g.updatedDate) || {}).updatedDate || todayStr();
+        await persistAssetItems();
+        await persistAssetDate();
+      }
+    }catch(e2){
+      // no legacy data either
+    }
+  }
+  try{
+    const res2 = await storageGet('asset-date');
+    if(res2 && res2.value) assetUpdatedDate = JSON.parse(res2.value);
+  }catch(e){
+    // no data yet
+  }
+  if(!assetUpdatedDate) assetUpdatedDate = todayStr();
+}
+async function persistAssetItems(){
+  try{
+    await storageSet('asset-items', JSON.stringify(assetItems));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function persistAssetDate(){
+  try{
+    await storageSet('asset-date', JSON.stringify(assetUpdatedDate));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function loadSalaryGroups(){
+  try{
+    const res = await storageGet('salary-groups');
+    if(res && res.value){
+      salaryGroups = JSON.parse(res.value);
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  salaryGroups = getDefaultSalaryGroups();
+  await persistSalary();
+}
+async function persistSalary(){
+  try{
+    await storageSet('salary-groups', JSON.stringify(salaryGroups));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function loadCategories(){
+  try{
+    const res = await storageGet('expense-categories');
+    if(res && res.value){
+      expenseCats = JSON.parse(res.value);
+      migrateGitaToFashion();
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  expenseCats = getDefaultExpenseCats();
+  await persistCategories();
+}
+function migrateGitaToFashion(){
+  const idx = expenseCats.findIndex(c => c.name === '기타');
+  if(idx !== -1 && !expenseCats.some(c => c.name === '패션/미용')){
+    expenseCats[idx] = {name:'패션/미용', icon:'shirt'};
+    entries.forEach(e => { if(e.type === 'expense' && e.category === '기타') e.category = '패션/미용'; });
+    persistCategories();
+    persist();
+  }
+}
+async function persistCategories(){
+  try{
+    await storageSet('expense-categories', JSON.stringify(expenseCats));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+async function loadPaymentMethods(){
+  try{
+    const res = await storageGet('payment-methods');
+    if(res && res.value){
+      paymentMethods = JSON.parse(res.value);
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  paymentMethods = getDefaultPaymentMethods();
+  await persistPaymentMethods();
+}
+async function persistPaymentMethods(){
+  try{
+    await storageSet('payment-methods', JSON.stringify(paymentMethods));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+function showError(msg){
+  errorMsg = msg;
+  render();
+  clearTimeout(errorTimer);
+  errorTimer = setTimeout(()=>{ errorMsg=""; render(); }, 2500);
+}
+
+function computeData(){
+  const dt = (e) => `${e.date}T${e.time || '00:00'}`;
+  const sortedAll = [...entries].sort((a,b)=> {
+    const da = dt(a), db = dt(b);
+    return da === db ? a.id-b.id : (da < db ? -1 : 1);
+  });
+  let running = 0;
+  const withBalance = sortedAll.map(e=>{
+    running += e.type === 'income' ? e.amount : -e.amount;
+    return {...e, balance: running};
+  });
+  const inMonth = withBalance
+    .filter(e=> monthKey(e.date) === currentMonth)
+    .sort((a,b)=> {
+      const da = dt(a), db = dt(b);
+      return da === db ? b.id-a.id : (da > db ? -1 : 1);
+    });
+
+  const monthIncome = inMonth.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
+  const monthExpense = inMonth.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
+
+  const byCat = {};
+  inMonth.filter(e=>e.type==='expense').forEach(e=>{
+    byCat[e.category] = (byCat[e.category]||0) + e.amount;
+  });
+  const catBreakdown = Object.entries(byCat).map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount);
+
+  const byPayment = {};
+  inMonth.filter(e=>e.type==='expense').forEach(e=>{
+    const key = e.payment || '미지정';
+    if(!byPayment[key]) byPayment[key] = {amount:0, count:0};
+    byPayment[key].amount += e.amount;
+    byPayment[key].count += 1;
+  });
+  const paymentOrder = [...paymentMethods, '미지정'];
+  const paymentBreakdown = paymentOrder
+    .filter(name => byPayment[name])
+    .map(name => ({name, amount: byPayment[name].amount, count: byPayment[name].count}))
+    .sort((a,b)=>b.amount-a.amount);
+
+  const totalBalance = withBalance.length ? withBalance[withBalance.length-1].balance : 0;
+
+  return {monthEntries: inMonth, monthIncome, monthExpense, totalBalance, catBreakdown, paymentBreakdown};
+}
+
+function openForm(type){
+  editingId = null;
+  form = {type, date: todayStr(), time: currentTimeStr(), category: type==='income' ? '급여' : '식비', payment:'현대카드', amount:'', memo:''};
+  formOpen = true;
+  render();
+}
+function openEditForm(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  editingId = id;
+  form = {
+    type: e.type,
+    date: e.date,
+    time: e.time || currentTimeStr(),
+    category: e.category,
+    payment: e.payment || '현대카드',
+    amount: String(e.amount),
+    memo: e.memo || '',
+  };
+  formOpen = true;
+  render();
+}
+function closeForm(){ formOpen = false; editingId = null; render(); }
+
+async function submitForm(){
+  const raw = document.getElementById('f-amount').value;
+  const amt = parseInt(raw.replace(/[^0-9]/g,''), 10);
+  if(!amt || amt <= 0){
+    showError('금액을 올바르게 입력해 주세요.');
+    return;
+  }
+  form.date = document.getElementById('f-date').value || todayStr();
+  form.memo = document.getElementById('f-memo').value.trim();
+  const timeEl = document.getElementById('f-time');
+  form.time = form.type === 'expense' ? ((timeEl && timeEl.value) || currentTimeStr()) : undefined;
+
+  if(editingId){
+    const idx = entries.findIndex(x => x.id === editingId);
+    if(idx !== -1){
+      entries[idx] = {
+        ...entries[idx],
+        date: form.date,
+        time: form.time,
+        category: form.category,
+        payment: form.type === 'expense' ? form.payment : undefined,
+        amount: amt,
+        memo: form.memo,
+      };
+    }
+  } else {
+    const entry = {
+      id: Date.now(),
+      type: form.type,
+      date: form.date,
+      time: form.time,
+      category: form.category,
+      payment: form.type === 'expense' ? form.payment : undefined,
+      amount: amt,
+      memo: form.memo,
+    };
+    entries.push(entry);
+  }
+  await persist();
+  currentMonth = monthKey(form.date);
+  formOpen = false;
+  editingId = null;
+  render();
+}
+
+function askDelete(id){ confirmDeleteId = id; render(); }
+function cancelDelete(){ confirmDeleteId = null; render(); }
+async function doDelete(){
+  entries = entries.filter(e=>e.id !== confirmDeleteId);
+  await persist();
+  confirmDeleteId = null;
+  render();
+}
+
+function selectCategory(name){
+  form.category = name;
+  render();
+}
+function selectPayment(name){
+  form.payment = name;
+  render();
+}
+function switchTab(tab){
+  activeTab = tab;
+  selectedPaymentMethod = null;
+  render();
+}
+function switchTopTab(tab){
+  topTab = tab;
+  render();
+}
+
+// --- Settings: manage expense categories & payment methods ---
+function openSettings(){
+  settingsOpen = true;
+  settingsTab = 'category';
+  render();
+}
+function closeSettings(){
+  settingsOpen = false;
+  render();
+}
+function switchSettingsTab(tab){
+  settingsTab = tab;
+  render();
+}
+
+async function addCategory(){
+  const name = document.getElementById('new-cat-name').value.trim();
+  if(!name){ showError('분류 이름을 입력해 주세요.'); return; }
+  if(expenseCats.some(c => c.name === name)){ showError('이미 있는 분류예요.'); return; }
+  expenseCats.push({name, icon:'tag'});
+  await persistCategories();
+  render();
+}
+async function renameCategory(oldName, newNameRaw){
+  const newName = (newNameRaw || '').trim();
+  if(!newName || newName === oldName){ render(); return; }
+  if(expenseCats.some(c => c.name === newName)){ showError('이미 있는 분류예요.'); render(); return; }
+  const cat = expenseCats.find(c => c.name === oldName);
+  if(!cat){ render(); return; }
+  cat.name = newName;
+  entries.forEach(e => { if(e.type === 'expense' && e.category === oldName) e.category = newName; });
+  await persistCategories();
+  await persist();
+  render();
+}
+function askDeleteCategory(name){
+  deleteCategoryTarget = name;
+  render();
+}
+function cancelDeleteCategory(){
+  deleteCategoryTarget = null;
+  render();
+}
+async function doDeleteCategory(){
+  expenseCats = expenseCats.filter(c => c.name !== deleteCategoryTarget);
+  await persistCategories();
+  deleteCategoryTarget = null;
+  render();
+}
+
+async function addPaymentMethod(){
+  const name = document.getElementById('new-pay-name').value.trim();
+  if(!name){ showError('결제 방식 이름을 입력해 주세요.'); return; }
+  if(paymentMethods.includes(name)){ showError('이미 있는 결제 방식이에요.'); return; }
+  paymentMethods.push(name);
+  await persistPaymentMethods();
+  render();
+}
+async function renamePaymentMethod(oldName, newNameRaw){
+  const newName = (newNameRaw || '').trim();
+  if(!newName || newName === oldName){ render(); return; }
+  if(paymentMethods.includes(newName)){ showError('이미 있는 결제 방식이에요.'); render(); return; }
+  const idx = paymentMethods.indexOf(oldName);
+  if(idx === -1){ render(); return; }
+  paymentMethods[idx] = newName;
+  entries.forEach(e => { if(e.payment === oldName) e.payment = newName; });
+  fixedGroups.forEach(g => g.items.forEach(it => { if(it.payment === oldName) it.payment = newName; }));
+  await persistPaymentMethods();
+  await persist();
+  await persistFixed();
+  render();
+}
+function askDeletePayment(name){
+  deletePaymentTarget = name;
+  render();
+}
+function cancelDeletePayment(){
+  deletePaymentTarget = null;
+  render();
+}
+async function doDeletePayment(){
+  paymentMethods = paymentMethods.filter(p => p !== deletePaymentTarget);
+  await persistPaymentMethods();
+  deletePaymentTarget = null;
+  render();
+}
+
+// --- Fixed expense group actions ---
+function openAddGroupForm(){
+  fixedGroupFormOpen = true;
+  render();
+}
+function closeAddGroupForm(){
+  fixedGroupFormOpen = false;
+  render();
+}
+async function submitAddGroup(){
+  const name = document.getElementById('fg-name').value.trim();
+  if(!name){
+    showError('그룹 이름을 입력해 주세요.');
+    return;
+  }
+  const newGroup = {id:'g-'+Date.now(), name, items:[]};
+  fixedGroups.push(newGroup);
+  await persistFixed();
+  fixedGroupFormOpen = false;
+  fixedActiveGroupId = newGroup.id;
+  await persistFixedActiveGroup();
+  render();
+}
+function switchFixedGroup(id){
+  fixedActiveGroupId = id;
+  persistFixedActiveGroup();
+  render();
+}
+function askDeleteGroup(id){
+  fixedConfirmDeleteGroup = id;
+  render();
+}
+function cancelDeleteGroup(){
+  fixedConfirmDeleteGroup = null;
+  render();
+}
+async function doDeleteGroup(){
+  fixedGroups = fixedGroups.filter(g => g.id !== fixedConfirmDeleteGroup);
+  await persistFixed();
+  fixedConfirmDeleteGroup = null;
+  ensureFixedActiveGroup();
+  await persistFixedActiveGroup();
+  render();
+}
+
+// --- Fixed expense item actions ---
+function openAddItemForm(groupId){
+  fixedEditingItemId = null;
+  fixedItemForm = {groupId, name:'', day:'1', payment:'', amount:'', prepaid:false};
+  fixedItemFormOpen = true;
+  render();
+}
+function openEditItemForm(groupId, itemId){
+  const g = fixedGroups.find(x => x.id === groupId);
+  const it = g && g.items.find(x => x.id === itemId);
+  if(!it) return;
+  fixedEditingItemId = itemId;
+  fixedItemForm = {groupId, name:it.name, day:String(it.day), payment:it.payment || '', amount:String(it.amount), prepaid:!!it.prepaid};
+  fixedItemFormOpen = true;
+  render();
+}
+function closeItemForm(){
+  fixedItemFormOpen = false;
+  fixedEditingItemId = null;
+  render();
+}
+function toggleFixedFormPrepaid(){
+  fixedItemForm.prepaid = !fixedItemForm.prepaid;
+  render();
+}
+async function submitFixedItem(){
+  const name = document.getElementById('fi-name').value.trim();
+  const day = parseInt(document.getElementById('fi-day').value, 10) || 1;
+  const payment = document.getElementById('fi-payment').value.trim();
+  const rawAmt = document.getElementById('fi-amount').value;
+  const amount = parseInt(rawAmt.replace(/[^0-9]/g,''), 10);
+  if(!name){
+    showError('항목명을 입력해 주세요.');
+    return;
+  }
+  if(!amount || amount <= 0){
+    showError('금액을 올바르게 입력해 주세요.');
+    return;
+  }
+  const g = fixedGroups.find(x => x.id === fixedItemForm.groupId);
+  if(!g) return;
+  if(fixedEditingItemId){
+    const idx = g.items.findIndex(x => x.id === fixedEditingItemId);
+    if(idx !== -1){
+      g.items[idx] = {...g.items[idx], name, day, payment, amount, prepaid: fixedItemForm.prepaid};
+    }
+  } else {
+    g.items.push({id:'fi-'+Date.now(), name, day, payment, amount, prepaid: fixedItemForm.prepaid});
+  }
+  await persistFixed();
+  fixedItemFormOpen = false;
+  fixedEditingItemId = null;
+  render();
+}
+async function toggleItemPrepaid(groupId, itemId){
+  const g = fixedGroups.find(x => x.id === groupId);
+  const it = g && g.items.find(x => x.id === itemId);
+  if(!it) return;
+  it.prepaid = !it.prepaid;
+  await persistFixed();
+  render();
+}
+function askDeleteItem(groupId, itemId){
+  fixedConfirmDelete = {groupId, itemId};
+  render();
+}
+function cancelDeleteItem(){
+  fixedConfirmDelete = null;
+  render();
+}
+async function doDeleteItem(){
+  const {groupId, itemId} = fixedConfirmDelete;
+  const g = fixedGroups.find(x => x.id === groupId);
+  if(g) g.items = g.items.filter(x => x.id !== itemId);
+  await persistFixed();
+  fixedConfirmDelete = null;
+  render();
+}
+function selectPaymentFilter(name){
+  selectedPaymentMethod = (selectedPaymentMethod === name) ? null : name;
+  render();
+}
+
+// --- Asset item actions (flat list, no sub-grouping) ---
+function openAddAssetItemForm(){
+  assetEditingItemId = null;
+  assetItemForm = {name:'', amount:''};
+  assetItemFormOpen = true;
+  render();
+}
+function openEditAssetItemForm(itemId){
+  const it = assetItems.find(x => x.id === itemId);
+  if(!it) return;
+  assetEditingItemId = itemId;
+  assetItemForm = {name:it.name, amount:String(it.amount)};
+  assetItemFormOpen = true;
+  render();
+}
+function closeAssetItemForm(){
+  assetItemFormOpen = false;
+  assetEditingItemId = null;
+  render();
+}
+async function submitAssetItem(){
+  const name = document.getElementById('ai-name').value.trim();
+  const rawAmt = document.getElementById('ai-amount').value.trim();
+  const amount = parseInt(rawAmt.replace(/[^0-9-]/g,''), 10);
+  if(!name){
+    showError('항목명을 입력해 주세요.');
+    return;
+  }
+  if(isNaN(amount) || amount === 0){
+    showError('금액을 올바르게 입력해 주세요. 대출 등은 -로 입력하세요.');
+    return;
+  }
+  if(assetEditingItemId){
+    const idx = assetItems.findIndex(x => x.id === assetEditingItemId);
+    if(idx !== -1){
+      assetItems[idx] = {...assetItems[idx], name, amount};
+    }
+  } else {
+    assetItems.push({id:'ai-'+Date.now(), name, amount});
+  }
+  await persistAssetItems();
+  assetItemFormOpen = false;
+  assetEditingItemId = null;
+  render();
+}
+function askDeleteAssetItem(itemId){
+  assetConfirmDelete = itemId;
+  render();
+}
+function cancelDeleteAssetItem(){
+  assetConfirmDelete = null;
+  render();
+}
+async function doDeleteAssetItem(){
+  assetItems = assetItems.filter(x => x.id !== assetConfirmDelete);
+  await persistAssetItems();
+  assetConfirmDelete = null;
+  render();
+}
+async function updateAssetDate(dateValue){
+  assetUpdatedDate = dateValue || todayStr();
+  await persistAssetDate();
+  render();
+}
+
+// --- Salary management (월급 관리) group actions ---
+function switchSalaryGroup(id){
+  salaryActiveGroupId = id;
+  render();
+}
+function openAddSalaryGroupForm(){
+  salaryGroupFormOpen = true;
+  render();
+}
+function closeAddSalaryGroupForm(){
+  salaryGroupFormOpen = false;
+  render();
+}
+async function submitAddSalaryGroup(){
+  const name = document.getElementById('sg-name').value.trim();
+  if(!name){
+    showError('그룹 이름을 입력해 주세요.');
+    return;
+  }
+  const newGroup = {id:'s-'+Date.now(), name, items:[]};
+  salaryGroups.push(newGroup);
+  await persistSalary();
+  salaryGroupFormOpen = false;
+  salaryActiveGroupId = newGroup.id;
+  render();
+}
+function askDeleteSalaryGroup(id){
+  salaryConfirmDeleteGroup = id;
+  render();
+}
+function cancelDeleteSalaryGroup(){
+  salaryConfirmDeleteGroup = null;
+  render();
+}
+async function doDeleteSalaryGroup(){
+  salaryGroups = salaryGroups.filter(g => g.id !== salaryConfirmDeleteGroup);
+  await persistSalary();
+  salaryConfirmDeleteGroup = null;
+  ensureSalaryActiveGroup();
+  render();
+}
+
+// --- Salary management item actions ---
+function openAddSalaryItemForm(groupId){
+  salaryEditingItemId = null;
+  salaryItemForm = {groupId, name:'', extraAmount:'', amount:'0'};
+  salaryCheckedFixedIds = [];
+  salaryItemFormOpen = true;
+  render();
+}
+function openEditSalaryItemForm(groupId, itemId){
+  const g = salaryGroups.find(x => x.id === groupId);
+  const it = g && g.items.find(x => x.id === itemId);
+  if(!it) return;
+  salaryEditingItemId = itemId;
+  // We don't store which fixed items were originally checked, so the previous
+  // total starts out as the "extra" (manual) portion; re-check boxes to split it out again.
+  salaryItemForm = {groupId, name:it.name, extraAmount:String(it.amount), amount:String(it.amount)};
+  salaryCheckedFixedIds = [];
+  salaryItemFormOpen = true;
+  render();
+}
+function closeSalaryItemForm(){
+  salaryItemFormOpen = false;
+  salaryEditingItemId = null;
+  salaryCheckedFixedIds = [];
+  render();
+}
+function matchedFixedGroupForSalary(){
+  const sg = salaryGroups.find(x => x.id === salaryItemForm.groupId);
+  if(!sg) return null;
+  return fixedGroups.find(fg => fg.name === sg.name) || null;
+}
+function recomputeSalaryAmount(){
+  const fg = matchedFixedGroupForSalary();
+  const fixedSum = fg ? fg.items.filter(it => salaryCheckedFixedIds.includes(it.id)).reduce((s,it)=>s+it.amount,0) : 0;
+  const extra = parseInt((salaryItemForm.extraAmount || '').replace(/[^0-9-]/g,''), 10) || 0;
+  salaryItemForm.amount = String(fixedSum + extra);
+}
+function toggleSalaryFixedCheck(fixedItemId){
+  // keep whatever the person has already typed so it isn't lost on re-render
+  const nameEl = document.getElementById('si-name');
+  if(nameEl) salaryItemForm.name = nameEl.value;
+  const extraEl = document.getElementById('si-extra');
+  if(extraEl) salaryItemForm.extraAmount = extraEl.value;
+
+  const idx = salaryCheckedFixedIds.indexOf(fixedItemId);
+  if(idx === -1) salaryCheckedFixedIds.push(fixedItemId);
+  else salaryCheckedFixedIds.splice(idx, 1);
+
+  recomputeSalaryAmount();
+  render();
+}
+function updateSalaryExtraAmount(value){
+  const nameEl = document.getElementById('si-name');
+  if(nameEl) salaryItemForm.name = nameEl.value;
+  salaryItemForm.extraAmount = value;
+  recomputeSalaryAmount();
+  render();
+}
+async function submitSalaryItem(){
+  const name = document.getElementById('si-name').value.trim();
+  const extraEl = document.getElementById('si-extra');
+  if(extraEl) salaryItemForm.extraAmount = extraEl.value;
+  recomputeSalaryAmount();
+  const amount = parseInt(salaryItemForm.amount, 10);
+  if(!name){
+    showError('항목명을 입력해 주세요.');
+    return;
+  }
+  if(isNaN(amount) || amount === 0){
+    showError('금액을 올바르게 입력해 주세요.');
+    return;
+  }
+  const g = salaryGroups.find(x => x.id === salaryItemForm.groupId);
+  if(!g) return;
+  if(salaryEditingItemId){
+    const idx = g.items.findIndex(x => x.id === salaryEditingItemId);
+    if(idx !== -1){
+      g.items[idx] = {...g.items[idx], name, amount};
+    }
+  } else {
+    g.items.push({id:'si-'+Date.now(), name, amount});
+  }
+  await persistSalary();
+  salaryItemFormOpen = false;
+  salaryEditingItemId = null;
+  salaryCheckedFixedIds = [];
+  render();
+}
+function askDeleteSalaryItem(groupId, itemId){
+  salaryConfirmDelete = {groupId, itemId};
+  render();
+}
+function cancelDeleteSalaryItem(){
+  salaryConfirmDelete = null;
+  render();
+}
+async function doDeleteSalaryItem(){
+  const {groupId, itemId} = salaryConfirmDelete;
+  const g = salaryGroups.find(x => x.id === groupId);
+  if(g) g.items = g.items.filter(x => x.id !== itemId);
+  await persistSalary();
+  salaryConfirmDelete = null;
+  render();
+}
+
+function renderRows(list, emptyMessage){
+  if(list.length === 0){
+    return `<div class="ledger-empty">${emptyMessage || '표시할 기록이 없습니다.'}</div>`;
+  }
+  return list.map(e=>{
+    const isIncome = e.type === 'income';
+    const color = isIncome ? 'var(--stamp-green)' : 'var(--stamp-red)';
+    return `
+    <div class="ledger-row" onclick="openEditForm(${e.id})">
+      <div class="cat-icon" style="--c:${color}">${icon(catIcon(e.type,e.category), 16, color)}</div>
+      <div class="row-main">
+        <div class="row-top">
+          <span class="cat-name">${escapeHtml(e.category)}</span>
+          <span class="row-date mono">${e.date.slice(5).replace('-','/')}${e.time ? ' ' + e.time : ''}</span>
+          ${e.payment ? `<span class="row-payment">${escapeHtml(e.payment)}</span>` : ''}
+        </div>
+        ${e.memo ? `<p class="row-memo">${escapeHtml(e.memo)}</p>` : ''}
+      </div>
+      <div class="row-amt">
+        <p class="amt mono" style="color:${color}">${isIncome?'+':'-'}${fmt(e.amount)}</p>
+        <p class="bal mono">잔액 ${fmt(e.balance)}</p>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); askDelete(${e.id})">${icon('trash-2',14)}</button>
+    </div>`;
+  }).join('');
+}
+
+function renderFixedTab(){
+  ensureFixedActiveGroup();
+  const grandTotal = fixedGroups.reduce((s,g)=> s + g.items.reduce((s2,it)=>s2+it.amount,0), 0);
+
+  function renderGroupCard(g){
+    const total = g.items.reduce((s,it)=>s+it.amount,0);
+    const nonPrepaidTotal = g.items.filter(it => !it.prepaid).reduce((s,it)=>s+it.amount,0);
+    const rows = g.items.length === 0
+      ? `<div class="ledger-empty">등록된 항목이 없습니다.</div>`
+      : g.items.slice().sort((a,b)=>a.day-b.day).map(it=>{
+          const pc = it.payment ? paymentColor(it.payment) : null;
+          return `
+          <div class="fixed-row" onclick="openEditItemForm('${g.id}','${it.id}')">
+            <div class="fixed-checkbox ${it.prepaid ? 'checked' : ''}" onclick="event.stopPropagation(); toggleItemPrepaid('${g.id}','${it.id}')">
+              ${it.prepaid ? icon('check', 13, '#fff') : ''}
+            </div>
+            <div class="fixed-main">
+              <div class="fixed-name-row">
+                <span class="fixed-name">${escapeHtml(it.name)}</span>
+                ${it.payment ? `<span class="pay-tag" style="background:${pc}1A; color:${pc}; border-color:${pc}66;">${escapeHtml(it.payment)}</span>` : ''}
+              </div>
+              <p class="fixed-meta mono">매월 ${it.day}일${it.prepaid ? ' · 선결제' : ''}</p>
+            </div>
+            <div class="fixed-amt mono">${fmt(it.amount)}원</div>
+            <button class="del-btn" onclick="event.stopPropagation(); askDeleteItem('${g.id}','${it.id}')">${icon('trash-2',14)}</button>
+          </div>`;
+        }).join('');
+    return `
+      <div class="fixed-card">
+        <div class="fixed-card-head">
+          <div>
+            <p class="fg-name">${escapeHtml(g.name)}</p>
+            <p class="fg-count">${g.items.length}건</p>
+          </div>
+          <div style="text-align:right;">
+            <p class="fg-total mono">${fmt(total)}원</p>
+            <button class="fg-del-btn" onclick="askDeleteGroup('${g.id}')">그룹 삭제</button>
+          </div>
+        </div>
+        ${rows}
+        <button class="fixed-add-btn" onclick="openAddItemForm('${g.id}')">${icon('plus',14)} 항목 추가</button>
+        <div class="fixed-total-row">
+          <span>선결제 제외 합계</span>
+          <span class="mono">${fmt(nonPrepaidTotal)}원</span>
+        </div>
+      </div>`;
+  }
+
+  const activeGroup = fixedGroups.find(g => g.id === fixedActiveGroupId);
+  const groupTabsHtml = fixedGroups.length === 0 ? '' : `
+    <div class="tab-bar">
+      ${fixedGroups.map(g => `
+        <button class="tab-btn ${g.id===fixedActiveGroupId ? 'active' : ''}" onclick="switchFixedGroup('${g.id}')">${escapeHtml(g.name)}</button>
+      `).join('')}
+    </div>`;
+
+  return `
+    <div class="cover" style="padding-bottom:24px;">
+      <div class="ring1"></div><div class="ring2"></div>
+      <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
+      <h1 class="serif">고정비</h1>
+      <p class="balance-label">전체 고정비 합계</p>
+      <p class="balance-value mono">${fmt(grandTotal)}<span>원</span></p>
+    </div>
+
+    ${groupTabsHtml}
+
+    ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
+
+    <div style="padding:20px;">
+      ${fixedGroups.length === 0 ? `<div class="ledger-empty">아직 고정비 그룹이 없습니다.</div>` : (activeGroup ? renderGroupCard(activeGroup) : '')}
+      <button class="add-group-btn" onclick="openAddGroupForm()">${icon('plus',15)} 그룹 추가</button>
+    </div>
+
+    <div class="overlay ${fixedItemFormOpen ? 'open' : ''}" onclick="closeItemForm()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-head">
+          <h2 class="serif">${fixedEditingItemId ? '고정비 수정' : '고정비 추가'}</h2>
+          <button onclick="closeItemForm()">${icon('x',20)}</button>
+        </div>
+        <input id="fi-name" type="text" placeholder="항목명 (예: 휴대폰 통신비)" class="field" value="${escapeHtml(fixedItemForm.name)}">
+        <div class="field-row">
+          <input id="fi-day" type="number" min="1" max="31" placeholder="매월 며칠" class="field mono" value="${fixedItemForm.day}">
+          <input id="fi-payment" list="payment-suggestions" placeholder="지출수단" class="field" value="${escapeHtml(fixedItemForm.payment)}">
+        </div>
+        <datalist id="payment-suggestions">
+          ${Array.from(new Set([...paymentMethods, '신한은행','하나은행','토스뱅크'])).map(p=>`<option value="${escapeHtml(p)}">`).join('')}
+        </datalist>
+        <input id="fi-amount" type="text" inputmode="numeric" placeholder="금액 (원)" class="field mono" value="${fixedItemForm.amount}">
+        <div class="prepaid-row" onclick="toggleFixedFormPrepaid()">
+          <div class="fixed-checkbox ${fixedItemForm.prepaid ? 'checked' : ''}">${fixedItemForm.prepaid ? icon('check', 13, '#fff') : ''}</div>
+          <span>선결제 여부</span>
+        </div>
+        <button class="submit-btn" style="background:var(--stamp-red)" onclick="submitFixedItem()">${fixedEditingItemId ? '수정하기' : '추가하기'}</button>
+      </div>
+    </div>
+
+    <div class="overlay center ${fixedGroupFormOpen ? 'open' : ''}" onclick="closeAddGroupForm()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text" style="font-weight:700;">새 고정비 그룹</p>
+        <input id="fg-name" type="text" placeholder="그룹 이름 (예: 은지)" class="field">
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="closeAddGroupForm()">취소</button>
+          <button class="btn-delete" style="background:var(--stamp-green)" onclick="submitAddGroup()">추가</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${fixedConfirmDelete ? 'open' : ''}" onclick="cancelDeleteItem()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">이 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteItem()">취소</button>
+          <button class="btn-delete" onclick="doDeleteItem()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${fixedConfirmDeleteGroup ? 'open' : ''}" onclick="cancelDeleteGroup()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">이 그룹과 그 안의 모든 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteGroup()">취소</button>
+          <button class="btn-delete" onclick="doDeleteGroup()">삭제</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAssetTab(){
+  const grandTotal = assetItems.reduce((s,it)=>s+it.amount,0);
+
+  const rows = assetItems.length === 0
+    ? `<div class="ledger-empty">등록된 항목이 없습니다.</div>`
+    : assetItems.map(it=>{
+        const isNeg = it.amount < 0;
+        return `
+        <div class="fixed-row" onclick="openEditAssetItemForm('${it.id}')">
+          <div class="fixed-main">
+            <span class="fixed-name">${escapeHtml(it.name)}</span>
+            ${isNeg ? `<p class="fixed-meta">대출/부채</p>` : ''}
+          </div>
+          <div class="fixed-amt mono" style="color:${isNeg ? 'var(--stamp-red)' : 'var(--ink)'}">${isNeg ? '-' : ''}${fmt(Math.abs(it.amount))}원</div>
+          <button class="del-btn" onclick="event.stopPropagation(); askDeleteAssetItem('${it.id}')">${icon('trash-2',14)}</button>
+        </div>`;
+      }).join('');
+
+  return `
+    <div class="cover" style="padding-bottom:24px;">
+      <div class="ring1"></div><div class="ring2"></div>
+      <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
+      <h1 class="serif">자산</h1>
+      <p class="balance-label">전체 순자산</p>
+      <p class="balance-value mono">${grandTotal < 0 ? '-' : ''}${fmt(Math.abs(grandTotal))}<span>원</span></p>
+    </div>
+
+    ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
+
+    <div style="padding:20px;">
+      <div class="fixed-card">
+        <div class="asset-date-row">
+          <span>업데이트</span>
+          <input type="date" class="mono" value="${assetUpdatedDate || todayStr()}" onchange="updateAssetDate(this.value)">
+        </div>
+        ${rows}
+        <button class="fixed-add-btn" onclick="openAddAssetItemForm()">${icon('plus',14)} 항목 추가</button>
+      </div>
+    </div>
+
+    <div class="overlay ${assetItemFormOpen ? 'open' : ''}" onclick="closeAssetItemForm()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-head">
+          <h2 class="serif">${assetEditingItemId ? '자산 수정' : '자산 추가'}</h2>
+          <button onclick="closeAssetItemForm()">${icon('x',20)}</button>
+        </div>
+        <input id="ai-name" type="text" placeholder="항목명 (예: 청약, 주택담보대출)" class="field" value="${escapeHtml(assetItemForm.name)}">
+        <input id="ai-amount" type="text" inputmode="text" placeholder="금액 (대출 등은 -로 입력, 예: -50000000)" class="field mono" value="${assetItemForm.amount}">
+        <button class="submit-btn" style="background:var(--accent)" onclick="submitAssetItem()">${assetEditingItemId ? '수정하기' : '추가하기'}</button>
+      </div>
+    </div>
+
+    <div class="overlay center ${assetConfirmDelete ? 'open' : ''}" onclick="cancelDeleteAssetItem()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">이 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteAssetItem()">취소</button>
+          <button class="btn-delete" onclick="doDeleteAssetItem()">삭제</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSalaryTab(){
+  ensureSalaryActiveGroup();
+  const grandTotal = salaryGroups.reduce((s,g)=> s + g.items.reduce((s2,it)=>s2+it.amount,0), 0);
+
+  function renderSalaryGroupCard(g){
+    const total = g.items.reduce((s,it)=>s+it.amount,0);
+    const rows = g.items.length === 0
+      ? `<div class="ledger-empty">등록된 항목이 없습니다.</div>`
+      : g.items.map(it => `
+          <div class="fixed-row" onclick="openEditSalaryItemForm('${g.id}','${it.id}')">
+            <div class="fixed-main">
+              <span class="fixed-name">${escapeHtml(it.name)}</span>
+            </div>
+            <div class="fixed-amt mono">${fmt(it.amount)}원</div>
+            <button class="del-btn" onclick="event.stopPropagation(); askDeleteSalaryItem('${g.id}','${it.id}')">${icon('trash-2',14)}</button>
+          </div>`).join('');
+    return `
+      <div class="fixed-card">
+        <div class="fixed-card-head">
+          <div>
+            <p class="fg-name">${escapeHtml(g.name)}</p>
+            <p class="fg-count">${g.items.length}건</p>
+          </div>
+          <div style="text-align:right;">
+            <p class="fg-total mono">${fmt(total)}원</p>
+            <button class="fg-del-btn" onclick="askDeleteSalaryGroup('${g.id}')">그룹 삭제</button>
+          </div>
+        </div>
+        ${rows}
+        <button class="fixed-add-btn" onclick="openAddSalaryItemForm('${g.id}')">${icon('plus',14)} 항목 추가</button>
+      </div>`;
+  }
+
+  const activeGroup = salaryGroups.find(g => g.id === salaryActiveGroupId);
+  const groupTabsHtml = salaryGroups.length === 0 ? '' : `
+    <div class="tab-bar">
+      ${salaryGroups.map(g => `
+        <button class="tab-btn ${g.id===salaryActiveGroupId ? 'active' : ''}" onclick="switchSalaryGroup('${g.id}')">${escapeHtml(g.name)}</button>
+      `).join('')}
+    </div>`;
+
+  const matchedFixedGroup = matchedFixedGroupForSalary();
+
+  return `
+    <div class="cover" style="padding-bottom:24px;">
+      <div class="ring1"></div><div class="ring2"></div>
+      <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
+      <h1 class="serif">월급 관리</h1>
+      <p class="balance-label">전체 합계</p>
+      <p class="balance-value mono">${fmt(grandTotal)}<span>원</span></p>
+    </div>
+
+    ${groupTabsHtml}
+
+    ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
+
+    <div style="padding:20px;">
+      ${salaryGroups.length === 0 ? `<div class="ledger-empty">아직 그룹이 없습니다.</div>` : (activeGroup ? renderSalaryGroupCard(activeGroup) : '')}
+      <button class="add-group-btn" onclick="openAddSalaryGroupForm()">${icon('plus',15)} 그룹 추가</button>
+    </div>
+
+    <div class="overlay ${salaryItemFormOpen ? 'open' : ''}" onclick="closeSalaryItemForm()">
+      <div class="modal" onclick="event.stopPropagation()" style="max-height:82vh; overflow-y:auto;">
+        <div class="modal-head">
+          <h2 class="serif">${salaryEditingItemId ? '항목 수정' : '항목 추가'}</h2>
+          <button onclick="closeSalaryItemForm()">${icon('x',20)}</button>
+        </div>
+        <input id="si-name" type="text" placeholder="은행 / 증권사 이름 (예: 신한은행)" class="field" value="${escapeHtml(salaryItemForm.name)}">
+        ${matchedFixedGroup && matchedFixedGroup.items.length ? `
+          <p class="field-label">고정비에서 합산해서 가져오기 (선택, 여러 개 체크 가능)</p>
+          <div class="settings-list" style="max-height:200px;">
+            ${matchedFixedGroup.items.map(fi => `
+              <label class="fixed-check-row">
+                <input type="checkbox" ${salaryCheckedFixedIds.includes(fi.id) ? 'checked' : ''} onchange="toggleSalaryFixedCheck('${fi.id}')">
+                <span class="fixed-check-name">${escapeHtml(fi.name)}</span>
+                <span class="mono">${fmt(fi.amount)}원</span>
+              </label>
+            `).join('')}
+          </div>
+        ` : ''}
+        <p class="field-label">추가 금액 (직접 입력, 체크한 고정비 합계에 더해져요)</p>
+        <input id="si-extra" type="text" inputmode="text" placeholder="0" class="field mono" value="${salaryItemForm.extraAmount}" onchange="updateSalaryExtraAmount(this.value)">
+        <div class="salary-total-row">
+          <span>합계 금액</span>
+          <span class="mono">${(parseInt(salaryItemForm.amount,10)||0) < 0 ? '-' : ''}${fmt(Math.abs(parseInt(salaryItemForm.amount,10)||0))}원</span>
+        </div>
+        <button class="submit-btn" style="background:var(--accent)" onclick="submitSalaryItem()">${salaryEditingItemId ? '수정하기' : '추가하기'}</button>
+      </div>
+    </div>
+
+    <div class="overlay center ${salaryGroupFormOpen ? 'open' : ''}" onclick="closeAddSalaryGroupForm()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text" style="font-weight:700;">새 그룹</p>
+        <input id="sg-name" type="text" placeholder="그룹 이름 (예: 은지)" class="field">
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="closeAddSalaryGroupForm()">취소</button>
+          <button class="btn-delete" style="background:var(--stamp-green)" onclick="submitAddSalaryGroup()">추가</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${salaryConfirmDelete ? 'open' : ''}" onclick="cancelDeleteSalaryItem()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">이 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteSalaryItem()">취소</button>
+          <button class="btn-delete" onclick="doDeleteSalaryItem()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${salaryConfirmDeleteGroup ? 'open' : ''}" onclick="cancelDeleteSalaryGroup()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">이 그룹과 그 안의 모든 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteSalaryGroup()">취소</button>
+          <button class="btn-delete" onclick="doDeleteSalaryGroup()">삭제</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function render(){
+  const {monthEntries, monthIncome, monthExpense, totalBalance, catBreakdown, paymentBreakdown} = computeData();
+  const activeCats = form.type === 'income' ? INCOME_CATS : expenseCats;
+
+  const rowsHtml = renderRows(monthEntries, '이번 달 기록이 없습니다. 아래 + 버튼으로 첫 기록을 남겨보세요.');
+
+  const breakdownHtml = catBreakdown.length === 0 ? '' : `
+    <div class="breakdown">
+      <p class="section-label" style="margin:0 0 8px;">카테고리별 지출</p>
+      <div class="breakdown-card">
+        ${catBreakdown.map(c=>{
+          const pct = monthExpense ? Math.round((c.amount/monthExpense)*100) : 0;
+          return `
+          <div class="bd-row">
+            <div class="bd-top">
+              <span class="bd-name">${escapeHtml(c.name)}</span>
+              <span class="bd-val mono">${fmt(c.amount)}원 · ${pct}%</span>
+            </div>
+            <div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  const paymentTabHtml = `
+    <div class="breakdown">
+      <p class="section-label" style="margin:0 0 8px;">${monthLabel(currentMonth)} 결제 수단별 지출</p>
+      <div class="breakdown-card">
+        ${paymentBreakdown.length === 0
+          ? `<div class="ledger-empty" style="padding:8px 0;">이번 달 지출 기록이 없습니다.</div>`
+          : paymentBreakdown.map(p=>{
+              const pct = monthExpense ? Math.round((p.amount/monthExpense)*100) : 0;
+              const active = selectedPaymentMethod === p.name;
+              return `
+              <div class="bd-row payment-row ${active ? 'active' : ''}" onclick="selectPaymentFilter('${p.name}')">
+                <div class="pay-icon">${icon(paymentIcon(p.name), 15, active ? 'var(--accent)' : 'var(--stamp-red)')}</div>
+                <div style="flex:1; min-width:0;">
+                  <div class="bd-top">
+                    <span class="bd-name">${escapeHtml(p.name)}</span>
+                    <span class="bd-val mono">${fmt(p.amount)}원 · ${pct}% · ${p.count}건</span>
+                  </div>
+                  <div class="bd-track"><div class="bd-fill" style="width:${pct}%; ${active ? 'background:var(--accent);' : ''}"></div></div>
+                </div>
+              </div>`;
+            }).join('')}
+      </div>
+      ${paymentBreakdown.length > 0 ? `
+      <div class="payment-total mono">
+        <span>합계</span><span>${fmt(monthExpense)}원</span>
+      </div>` : ''}
+    </div>
+    ${selectedPaymentMethod ? `
+      <div style="padding:0 20px 20px;">
+        <p class="section-label" style="margin:0 0 6px;">${escapeHtml(selectedPaymentMethod)} 결제 내역</p>
+        <div class="ledger">${renderRows(monthEntries.filter(e=>e.payment === selectedPaymentMethod), '해당 결제 수단으로 기록된 지출이 없습니다.')}</div>
+      </div>
+    ` : ''}`;
+
+  const ledgerHtml = `
+    <div class="cover">
+      <div class="ring1"></div><div class="ring2"></div>
+      <button class="settings-btn" onclick="openSettings()">${icon('settings',18,'rgba(255,255,255,0.85)')}</button>
+      <p class="eyebrow">MY&nbsp;HOUSEHOLD&nbsp;LEDGER</p>
+      <h1 class="serif">가계부</h1>
+      <p class="balance-label">총 잔액</p>
+      <p class="balance-value mono">${fmt(totalBalance)}<span>원</span></p>
+    </div>
+
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">${icon('chevron-left',20)}</button>
+      <span class="serif">${monthLabel(currentMonth)}</span>
+      <button onclick="changeMonth(1)">${icon('chevron-right',20)}</button>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn ${activeTab==='ledger' ? 'active' : ''}" onclick="switchTab('ledger')">내역</button>
+      <button class="tab-btn ${activeTab==='payment' ? 'active' : ''}" onclick="switchTab('payment')">결제 수단별</button>
+    </div>
+
+    <div class="summary">
+      <div class="card income"><p>이번 달 수입</p><p class="mono">+${fmt(monthIncome)}원</p></div>
+      <div class="card expense"><p>이번 달 지출</p><p class="mono">-${fmt(monthExpense)}원</p></div>
+    </div>
+
+    ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
+
+    ${activeTab === 'ledger' ? `
+      <p class="section-label">거래 내역</p>
+      <div class="ledger">${rowsHtml}</div>
+      ${breakdownHtml}
+    ` : paymentTabHtml}
+
+    <div class="fab-wrap">
+      <button class="fab-income" onclick="openForm('income')">${icon('plus',14)} 수입</button>
+      <button class="fab-expense" onclick="openForm('expense')">${icon('plus',16)} 지출</button>
+    </div>
+
+    <div class="overlay ${formOpen ? 'open' : ''}" onclick="closeForm()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-head">
+          <h2 class="serif">${form.type==='income' ? (editingId ? '수입 수정' : '수입 기록') : ''}</h2>
+          <button onclick="closeForm()">${icon('x',20)}</button>
+        </div>
+        ${form.type === 'expense' ? `<p class="field-label">지출 분류</p>` : ''}
+        <div class="cat-grid">
+          ${activeCats.map(c=>{
+            const active = form.category === c.name;
+            const cls = active ? (form.type==='income' ? 'active-income' : 'active-expense') : '';
+            return `<div class="cat-opt ${cls}" onclick="selectCategory('${c.name}')">${icon(c.icon,15)} ${c.name}</div>`;
+          }).join('')}
+        </div>
+        ${form.type === 'expense' ? `
+        <p class="field-label">결제 방식</p>
+        <div class="pay-grid">
+          ${paymentMethods.map(p=>{
+            const active = form.payment === p;
+            return `<div class="pay-opt ${active ? 'active' : ''}" onclick="selectPayment('${p}')">${icon(paymentIcon(p),14)} ${p}</div>`;
+          }).join('')}
+        </div>` : ''}
+        <div class="field-row">
+          <input id="f-date" type="date" class="field mono" value="${form.date}">
+          ${form.type === 'expense' ? `<input id="f-time" type="time" class="field mono" value="${form.time || currentTimeStr()}">` : ''}
+        </div>
+        <input id="f-amount" type="text" inputmode="numeric" placeholder="금액 (원)" class="field mono" value="${form.amount}">
+        <input id="f-memo" type="text" placeholder="메모 (선택)" class="field" value="${form.memo}">
+        <button class="submit-btn" style="background:${form.type==='income' ? 'var(--stamp-green)' : 'var(--stamp-red)'}" onclick="submitForm()">${editingId ? '수정하기' : '기록하기'}</button>
+      </div>
+    </div>
+
+    <div class="overlay center ${confirmDeleteId ? 'open' : ''}" onclick="cancelDelete()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">이 기록을 삭제할까요? 삭제하면 되돌릴 수 없습니다.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDelete()">취소</button>
+          <button class="btn-delete" onclick="doDelete()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay ${settingsOpen ? 'open' : ''}" onclick="closeSettings()">
+      <div class="modal" onclick="event.stopPropagation()" style="max-height:78vh; overflow-y:auto;">
+        <div class="modal-head">
+          <h2 class="serif">항목 관리</h2>
+          <button onclick="closeSettings()">${icon('x',20)}</button>
+        </div>
+        <div class="tab-bar" style="padding:0 0 14px;">
+          <button class="tab-btn ${settingsTab==='category' ? 'active' : ''}" onclick="switchSettingsTab('category')">지출 분류</button>
+          <button class="tab-btn ${settingsTab==='payment' ? 'active' : ''}" onclick="switchSettingsTab('payment')">결제 방식</button>
+        </div>
+        ${settingsTab === 'category' ? `
+          <div class="settings-list">
+            ${expenseCats.map(c => `
+              <div class="settings-row">
+                <span class="settings-row-icon">${icon(c.icon,15)}</span>
+                <input type="text" class="settings-name-input" value="${escapeHtml(c.name)}" onchange="renameCategory('${escapeHtml(c.name)}', this.value)">
+                <button class="settings-icon-btn" onclick="askDeleteCategory('${escapeHtml(c.name)}')">${icon('trash-2',14)}</button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="add-row">
+            <input id="new-cat-name" type="text" class="field" placeholder="새 지출 분류 이름">
+            <button onclick="addCategory()">추가</button>
+          </div>
+        ` : `
+          <div class="settings-list">
+            ${paymentMethods.map(p => `
+              <div class="settings-row">
+                <span class="settings-row-icon">${icon(paymentIcon(p),15)}</span>
+                <input type="text" class="settings-name-input" value="${escapeHtml(p)}" onchange="renamePaymentMethod('${escapeHtml(p)}', this.value)">
+                <button class="settings-icon-btn" onclick="askDeletePayment('${escapeHtml(p)}')">${icon('trash-2',14)}</button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="add-row">
+            <input id="new-pay-name" type="text" class="field" placeholder="새 결제 방식 이름">
+            <button onclick="addPaymentMethod()">추가</button>
+          </div>
+        `}
+      </div>
+    </div>
+
+    <div class="overlay center ${deleteCategoryTarget ? 'open' : ''}" onclick="cancelDeleteCategory()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">'${deleteCategoryTarget ? escapeHtml(deleteCategoryTarget) : ''}' 분류를 삭제할까요? 이미 기록된 지출의 분류는 그대로 남아요.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteCategory()">취소</button>
+          <button class="btn-delete" onclick="doDeleteCategory()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${deletePaymentTarget ? 'open' : ''}" onclick="cancelDeletePayment()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">'${deletePaymentTarget ? escapeHtml(deletePaymentTarget) : ''}' 결제 방식을 삭제할까요? 이미 기록된 내역의 결제 방식은 그대로 남아요.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeletePayment()">취소</button>
+          <button class="btn-delete" onclick="doDeletePayment()">삭제</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  let tabContent;
+  if(topTab === 'ledger') tabContent = ledgerHtml;
+  else if(topTab === 'fixed') tabContent = renderFixedTab();
+  else if(topTab === 'asset') tabContent = renderAssetTab();
+  else if(topTab === 'salary') tabContent = renderSalaryTab();
+  else tabContent = ledgerHtml;
+
+  document.getElementById('app').innerHTML = `
+    <div class="top-tab-bar">
+      <button class="top-tab-btn ${topTab==='ledger' ? 'active' : ''}" onclick="switchTopTab('ledger')">가계부</button>
+      <button class="top-tab-btn ${topTab==='fixed' ? 'active' : ''}" onclick="switchTopTab('fixed')">고정비</button>
+      <button class="top-tab-btn ${topTab==='asset' ? 'active' : ''}" onclick="switchTopTab('asset')">자산</button>
+      <button class="top-tab-btn ${topTab==='salary' ? 'active' : ''}" onclick="switchTopTab('salary')">월급 관리</button>
+    </div>
+    ${tabContent}
+  `;
+}
+
+function changeMonth(delta){
+  currentMonth = shiftMonth(currentMonth, delta);
+  selectedPaymentMethod = null;
+  render();
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+(async function init(){
+  await loadEntries();
+  await loadFixedGroups();
+  await loadFixedActiveGroup();
+  await loadAssets();
+  await loadSalaryGroups();
+  await loadCategories();
+  await loadPaymentMethods();
+  render();
+})();
+</script>
+</body>
+</html>
