@@ -219,12 +219,15 @@
   /* Settings: category & payment method management */
   .settings-list{max-height:260px; overflow-y:auto; margin-bottom:12px;}
   .fixed-check-row{
-    display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--paper-line);
+    display:grid; grid-template-columns:18px 1fr 72px 88px; align-items:center; gap:8px;
+    padding:8px 0; border-bottom:1px dashed var(--paper-line);
     font-size:13px; color:var(--ink); cursor:pointer;
   }
   .fixed-check-row:last-child{border-bottom:none;}
-  .fixed-check-row input[type="checkbox"]{flex-shrink:0; width:16px; height:16px;}
-  .fixed-check-name{flex:1; min-width:0;}
+  .fixed-check-row input[type="checkbox"]{width:16px; height:16px;}
+  .fixed-check-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+  .fixed-check-row .pay-tag{justify-self:start; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .fixed-check-row .mono{text-align:right; justify-self:end;}
   .salary-total-row{
     display:flex; justify-content:space-between; align-items:center; padding:12px 14px; margin-bottom:14px;
     background:#F5F7FC; border-radius:8px; font-size:14px; font-weight:700; color:var(--ink);
@@ -302,10 +305,35 @@ const ICONS = {
   "credit-card": '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
   "banknote": '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
   "check": '<polyline points="20 6 9 17 4 12"/>',
+  "copy": '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   "tag": '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
   "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   "shirt": '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 .55.45 1 1 1h10c.55 0 1-.45 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
 };
+function copyToClipboard(text, btnEl){
+  const showCopied = () => {
+    if(!btnEl) return;
+    const original = btnEl.innerHTML;
+    btnEl.innerHTML = icon('check', 14, 'var(--stamp-green)');
+    setTimeout(() => { btnEl.innerHTML = original; }, 1200);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(showCopied).catch(showCopied);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+    showCopied();
+  }
+}
+function copyAccountNumber(account, btnEl){
+  copyToClipboard(account, btnEl);
+}
 function icon(name, size, color){
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size||16}" height="${size||16}" viewBox="0 0 24 24" fill="none" stroke="${color||'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;
 }
@@ -1174,7 +1202,7 @@ async function doDeleteSalaryGroup(){
 // --- Salary management item actions ---
 function openAddSalaryItemForm(groupId){
   salaryEditingItemId = null;
-  salaryItemForm = {groupId, name:'', extraAmount:'', amount:'0'};
+  salaryItemForm = {groupId, name:'', account:'', extraAmount:'', amount:'0'};
   salaryCheckedFixedIds = [];
   salaryItemFormOpen = true;
   render();
@@ -1184,10 +1212,12 @@ function openEditSalaryItemForm(groupId, itemId){
   const it = g && g.items.find(x => x.id === itemId);
   if(!it) return;
   salaryEditingItemId = itemId;
-  // We don't store which fixed items were originally checked, so the previous
-  // total starts out as the "extra" (manual) portion; re-check boxes to split it out again.
-  salaryItemForm = {groupId, name:it.name, extraAmount:String(it.amount), amount:String(it.amount)};
-  salaryCheckedFixedIds = [];
+  // Restore whichever fixed-expense items were checked last time.
+  salaryCheckedFixedIds = [...(it.checkedFixedIds || [])];
+  const fg = fixedGroups.find(f => f.name === g.name);
+  const fixedSum = fg ? fg.items.filter(fi => salaryCheckedFixedIds.includes(fi.id)).reduce((s,fi)=>s+fi.amount,0) : 0;
+  const extra = it.amount - fixedSum;
+  salaryItemForm = {groupId, name:it.name, account:it.account || '', extraAmount:String(extra), amount:String(it.amount)};
   salaryItemFormOpen = true;
   render();
 }
@@ -1208,29 +1238,28 @@ function recomputeSalaryAmount(){
   const extra = parseInt((salaryItemForm.extraAmount || '').replace(/[^0-9-]/g,''), 10) || 0;
   salaryItemForm.amount = String(fixedSum + extra);
 }
+function updateSalaryTotalDisplay(){
+  const totalEl = document.getElementById('salary-total-value');
+  if(!totalEl) return;
+  const n = parseInt(salaryItemForm.amount, 10) || 0;
+  totalEl.textContent = (n < 0 ? '-' : '') + fmt(Math.abs(n)) + '원';
+}
 function toggleSalaryFixedCheck(fixedItemId){
-  // keep whatever the person has already typed so it isn't lost on re-render
-  const nameEl = document.getElementById('si-name');
-  if(nameEl) salaryItemForm.name = nameEl.value;
-  const extraEl = document.getElementById('si-extra');
-  if(extraEl) salaryItemForm.extraAmount = extraEl.value;
-
   const idx = salaryCheckedFixedIds.indexOf(fixedItemId);
   if(idx === -1) salaryCheckedFixedIds.push(fixedItemId);
   else salaryCheckedFixedIds.splice(idx, 1);
 
   recomputeSalaryAmount();
-  render();
+  updateSalaryTotalDisplay();
 }
 function updateSalaryExtraAmount(value){
-  const nameEl = document.getElementById('si-name');
-  if(nameEl) salaryItemForm.name = nameEl.value;
   salaryItemForm.extraAmount = value;
   recomputeSalaryAmount();
-  render();
+  updateSalaryTotalDisplay();
 }
 async function submitSalaryItem(){
   const name = document.getElementById('si-name').value.trim();
+  const account = document.getElementById('si-account').value.trim();
   const extraEl = document.getElementById('si-extra');
   if(extraEl) salaryItemForm.extraAmount = extraEl.value;
   recomputeSalaryAmount();
@@ -1245,13 +1274,14 @@ async function submitSalaryItem(){
   }
   const g = salaryGroups.find(x => x.id === salaryItemForm.groupId);
   if(!g) return;
+  const checkedFixedIds = [...salaryCheckedFixedIds];
   if(salaryEditingItemId){
     const idx = g.items.findIndex(x => x.id === salaryEditingItemId);
     if(idx !== -1){
-      g.items[idx] = {...g.items[idx], name, amount};
+      g.items[idx] = {...g.items[idx], name, account, amount, checkedFixedIds};
     }
   } else {
-    g.items.push({id:'si-'+Date.now(), name, amount});
+    g.items.push({id:'si-'+Date.now(), name, account, amount, checkedFixedIds});
   }
   await persistSalary();
   salaryItemFormOpen = false;
@@ -1509,8 +1539,11 @@ function renderSalaryTab(){
           <div class="fixed-row" onclick="openEditSalaryItemForm('${g.id}','${it.id}')">
             <div class="fixed-main">
               <span class="fixed-name">${escapeHtml(it.name)}</span>
+              ${it.account ? `<p class="fixed-meta mono">${escapeHtml(it.account)}</p>` : ''}
             </div>
             <div class="fixed-amt mono">${fmt(it.amount)}원</div>
+            <button class="del-btn" onclick="event.stopPropagation(); copyToClipboard('${it.amount}', this)" title="금액 복사">${icon('copy',14)}</button>
+            ${it.account ? `<button class="del-btn" onclick="event.stopPropagation(); copyToClipboard('${escapeHtml(it.account)}', this)" title="계좌번호 복사">${icon('copy',14)}</button>` : ''}
             <button class="del-btn" onclick="event.stopPropagation(); askDeleteSalaryItem('${g.id}','${it.id}')">${icon('trash-2',14)}</button>
           </div>`).join('');
     return `
@@ -1559,29 +1592,33 @@ function renderSalaryTab(){
     </div>
 
     <div class="overlay ${salaryItemFormOpen ? 'open' : ''}" onclick="closeSalaryItemForm()">
-      <div class="modal" onclick="event.stopPropagation()" style="max-height:82vh; overflow-y:auto;">
+      <div id="salary-item-modal" class="modal" onclick="event.stopPropagation()" style="max-height:82vh; overflow-y:auto;">
         <div class="modal-head">
           <h2 class="serif">${salaryEditingItemId ? '항목 수정' : '항목 추가'}</h2>
           <button onclick="closeSalaryItemForm()">${icon('x',20)}</button>
         </div>
         <input id="si-name" type="text" placeholder="은행 / 증권사 이름 (예: 신한은행)" class="field" value="${escapeHtml(salaryItemForm.name)}">
+        <input id="si-account" type="text" inputmode="text" placeholder="계좌번호 (선택)" class="field mono" value="${escapeHtml(salaryItemForm.account || '')}">
         ${matchedFixedGroup && matchedFixedGroup.items.length ? `
           <p class="field-label">고정비에서 합산해서 가져오기 (선택, 여러 개 체크 가능)</p>
           <div class="settings-list" style="max-height:200px;">
-            ${matchedFixedGroup.items.map(fi => `
+            ${matchedFixedGroup.items.map(fi => {
+              const pc = fi.payment ? paymentColor(fi.payment) : null;
+              return `
               <label class="fixed-check-row">
                 <input type="checkbox" ${salaryCheckedFixedIds.includes(fi.id) ? 'checked' : ''} onchange="toggleSalaryFixedCheck('${fi.id}')">
                 <span class="fixed-check-name">${escapeHtml(fi.name)}</span>
+                <span>${fi.payment ? `<span class="pay-tag" style="background:${pc}1A; color:${pc}; border-color:${pc}66;">${escapeHtml(fi.payment)}</span>` : ''}</span>
                 <span class="mono">${fmt(fi.amount)}원</span>
               </label>
-            `).join('')}
+            `;}).join('')}
           </div>
         ` : ''}
         <p class="field-label">추가 금액 (직접 입력, 체크한 고정비 합계에 더해져요)</p>
         <input id="si-extra" type="text" inputmode="text" placeholder="0" class="field mono" value="${salaryItemForm.extraAmount}" onchange="updateSalaryExtraAmount(this.value)">
         <div class="salary-total-row">
           <span>합계 금액</span>
-          <span class="mono">${(parseInt(salaryItemForm.amount,10)||0) < 0 ? '-' : ''}${fmt(Math.abs(parseInt(salaryItemForm.amount,10)||0))}원</span>
+          <span id="salary-total-value" class="mono">${(parseInt(salaryItemForm.amount,10)||0) < 0 ? '-' : ''}${fmt(Math.abs(parseInt(salaryItemForm.amount,10)||0))}원</span>
         </div>
         <button class="submit-btn" style="background:var(--accent)" onclick="submitSalaryItem()">${salaryEditingItemId ? '수정하기' : '추가하기'}</button>
       </div>
