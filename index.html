@@ -195,6 +195,8 @@
   .fixed-name{font-size:14px; color:var(--ink); margin:0;}
   .pay-tag{font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; border:1px solid; white-space:nowrap;}
   .fixed-meta{color:var(--ink-faint); font-size:11px; margin:2px 0 0;}
+  .account-inline{display:flex; align-items:center; gap:4px;}
+  .copy-inline-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:1px; display:inline-flex; flex-shrink:0;}
   .fixed-amt{font-size:14px; font-weight:600; color:var(--ink); flex-shrink:0;}
   .fixed-add-btn{
     width:100%; padding:12px; background:none; border:none; border-top:1px dashed var(--paper-line);
@@ -210,6 +212,25 @@
     border-bottom:1px solid var(--paper-line); font-size:12px; color:var(--ink-faint); background:#F5F7FC;
   }
   .asset-date-row input{border:1px solid var(--paper-line); border-radius:6px; padding:4px 8px; font-size:12px; color:var(--ink); font-family:inherit;}
+
+  /* Asset categories & reorder */
+  .asset-cat-group{border-bottom:1px solid var(--paper-line);}
+  .asset-cat-group:last-of-type{border-bottom:none;}
+  .asset-cat-header{
+    display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+    padding:10px 16px 4px; margin:0;
+  }
+  .asset-cat-dot{width:8px; height:8px; border-radius:9999px; flex-shrink:0;}
+  .asset-reorder{display:flex; flex-direction:column; gap:0; flex-shrink:0;}
+  .asset-reorder button{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:0; line-height:0;}
+  .asset-reorder button:disabled{opacity:0.2; cursor:default;}
+  .asset-legend-row{
+    display:flex; align-items:center; gap:8px; padding:6px 4px; border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  .asset-legend-row:hover{background:#F5F7FC;}
+  .asset-legend-row.active{background:#EAF0FE;}
+  .asset-legend-name{flex:1; min-width:0; color:var(--ink);}
+
   .add-group-btn{
     width:100%; padding:12px; background:#fff; border:1px dashed var(--paper-line); border-radius:10px;
     color:var(--ink-faint); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
@@ -298,6 +319,8 @@ const ICONS = {
   "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   "chevron-left": '<path d="m15 18-6-6 6-6"/>',
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+  "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+  "chevron-down": '<path d="m6 9 6 6 6-6"/>',
   "trash-2": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
   "luggage": '<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M4 12h16"/><path d="M9 20v1"/><path d="M15 20v1"/>',
   "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -405,6 +428,7 @@ let errorMsg = "";
 let errorTimer = null;
 let activeTab = "ledger"; // 'ledger' | 'payment'
 let selectedPaymentMethod = null;
+let selectedCategoryFilter = null;
 let topTab = "ledger"; // 'ledger' | 'fixed' | 'salary'
 let settingsOpen = false;
 let settingsTab = "category"; // 'category' | 'payment'
@@ -428,11 +452,24 @@ function ensureFixedActiveGroup(){
 }
 
 // --- Assets (자산) state ---
+const ASSET_CATEGORIES = ["부동산", "주식", "투자", "저축", "대출", "기타"];
+const ASSET_CATEGORY_COLORS = {
+  "부동산": "#2F5FDE",
+  "주식": "#7A3E9B",
+  "투자": "#0F7A4A",
+  "저축": "#2C6E49",
+  "대출": "#A8382C",
+  "기타": "#6B7280",
+};
+function assetCategoryColor(name){
+  return ASSET_CATEGORY_COLORS[name] || '#6B7280';
+}
 let assetItems = [];
 let assetUpdatedDate = '';
 let assetItemFormOpen = false;
-let assetItemForm = {name:'', amount:''};
+let assetItemForm = {name:'', amount:'', category:'기타'};
 let assetEditingItemId = null;
+let assetSelectedCategory = null; // for the pie-chart detail panel
 let assetConfirmDelete = null; // itemId
 
 // --- Salary management (월급 관리) state ---
@@ -870,6 +907,7 @@ function selectPayment(name){
 function switchTab(tab){
   activeTab = tab;
   selectedPaymentMethod = null;
+  selectedCategoryFilter = null;
   render();
 }
 function switchTopTab(tab){
@@ -1091,11 +1129,15 @@ function selectPaymentFilter(name){
   selectedPaymentMethod = (selectedPaymentMethod === name) ? null : name;
   render();
 }
+function selectCategoryFilter(name){
+  selectedCategoryFilter = (selectedCategoryFilter === name) ? null : name;
+  render();
+}
 
-// --- Asset item actions (flat list, no sub-grouping) ---
+// --- Asset item actions (flat list, grouped by category for display) ---
 function openAddAssetItemForm(){
   assetEditingItemId = null;
-  assetItemForm = {name:'', amount:''};
+  assetItemForm = {name:'', amount:'', category:'기타'};
   assetItemFormOpen = true;
   render();
 }
@@ -1103,7 +1145,7 @@ function openEditAssetItemForm(itemId){
   const it = assetItems.find(x => x.id === itemId);
   if(!it) return;
   assetEditingItemId = itemId;
-  assetItemForm = {name:it.name, amount:String(it.amount)};
+  assetItemForm = {name:it.name, amount:String(it.amount), category:it.category || '기타'};
   assetItemFormOpen = true;
   render();
 }
@@ -1112,10 +1154,15 @@ function closeAssetItemForm(){
   assetEditingItemId = null;
   render();
 }
+function selectAssetItemCategory(name){
+  assetItemForm.category = name;
+  render();
+}
 async function submitAssetItem(){
   const name = document.getElementById('ai-name').value.trim();
   const rawAmt = document.getElementById('ai-amount').value.trim();
   const amount = parseInt(rawAmt.replace(/[^0-9-]/g,''), 10);
+  const category = assetItemForm.category || '기타';
   if(!name){
     showError('항목명을 입력해 주세요.');
     return;
@@ -1127,14 +1174,32 @@ async function submitAssetItem(){
   if(assetEditingItemId){
     const idx = assetItems.findIndex(x => x.id === assetEditingItemId);
     if(idx !== -1){
-      assetItems[idx] = {...assetItems[idx], name, amount};
+      assetItems[idx] = {...assetItems[idx], name, amount, category};
     }
   } else {
-    assetItems.push({id:'ai-'+Date.now(), name, amount});
+    assetItems.push({id:'ai-'+Date.now(), name, amount, category});
   }
   await persistAssetItems();
   assetItemFormOpen = false;
   assetEditingItemId = null;
+  render();
+}
+async function moveAssetItem(itemId, direction){
+  const it = assetItems.find(x => x.id === itemId);
+  if(!it) return;
+  const cat = it.category || '기타';
+  const sameCat = assetItems.filter(x => (x.category || '기타') === cat);
+  const idxInCat = sameCat.findIndex(x => x.id === itemId);
+  const swapWith = sameCat[idxInCat + direction];
+  if(!swapWith) return;
+  const globalIdxA = assetItems.findIndex(x => x.id === it.id);
+  const globalIdxB = assetItems.findIndex(x => x.id === swapWith.id);
+  [assetItems[globalIdxA], assetItems[globalIdxB]] = [assetItems[globalIdxB], assetItems[globalIdxA]];
+  await persistAssetItems();
+  render();
+}
+function selectAssetChartCategory(name){
+  assetSelectedCategory = (assetSelectedCategory === name) ? null : name;
   render();
 }
 function askDeleteAssetItem(itemId){
@@ -1466,20 +1531,96 @@ function renderFixedTab(){
 function renderAssetTab(){
   const grandTotal = assetItems.reduce((s,it)=>s+it.amount,0);
 
-  const rows = assetItems.length === 0
+  function renderItemRow(it, idxInCat, catItemsLen){
+    const isNeg = it.amount < 0;
+    return `
+    <div class="fixed-row" onclick="openEditAssetItemForm('${it.id}')">
+      <div class="asset-reorder" onclick="event.stopPropagation()">
+        <button ${idxInCat === 0 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', -1)">${icon('chevron-up',12)}</button>
+        <button ${idxInCat === catItemsLen-1 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', 1)">${icon('chevron-down',12)}</button>
+      </div>
+      <div class="fixed-main">
+        <span class="fixed-name">${escapeHtml(it.name)}</span>
+      </div>
+      <div class="fixed-amt mono" style="color:${isNeg ? 'var(--stamp-red)' : 'var(--ink)'}">${isNeg ? '-' : ''}${fmt(Math.abs(it.amount))}원</div>
+      <button class="del-btn" onclick="event.stopPropagation(); askDeleteAssetItem('${it.id}')">${icon('trash-2',14)}</button>
+    </div>`;
+  }
+
+  const groupedListHtml = assetItems.length === 0
     ? `<div class="ledger-empty">등록된 항목이 없습니다.</div>`
-    : assetItems.map(it=>{
-        const isNeg = it.amount < 0;
+    : ASSET_CATEGORIES.filter(cat => assetItems.some(it => (it.category || '기타') === cat)).map(cat => {
+        const catItems = assetItems.filter(it => (it.category || '기타') === cat);
+        const catColor = assetCategoryColor(cat);
         return `
-        <div class="fixed-row" onclick="openEditAssetItemForm('${it.id}')">
-          <div class="fixed-main">
-            <span class="fixed-name">${escapeHtml(it.name)}</span>
-            ${isNeg ? `<p class="fixed-meta">대출/부채</p>` : ''}
-          </div>
-          <div class="fixed-amt mono" style="color:${isNeg ? 'var(--stamp-red)' : 'var(--ink)'}">${isNeg ? '-' : ''}${fmt(Math.abs(it.amount))}원</div>
-          <button class="del-btn" onclick="event.stopPropagation(); askDeleteAssetItem('${it.id}')">${icon('trash-2',14)}</button>
+        <div class="asset-cat-group">
+          <p class="asset-cat-header" style="color:${catColor};">
+            <span class="asset-cat-dot" style="background:${catColor};"></span>${escapeHtml(cat)}
+          </p>
+          ${catItems.map((it,i)=>renderItemRow(it, i, catItems.length)).join('')}
         </div>`;
       }).join('');
+
+  // --- category totals for the donut chart ---
+  const catTotals = ASSET_CATEGORIES.map(cat => ({
+    name: cat,
+    color: assetCategoryColor(cat),
+    total: assetItems.filter(it => (it.category || '기타') === cat).reduce((s,it)=>s+it.amount,0),
+    count: assetItems.filter(it => (it.category || '기타') === cat).length,
+  })).filter(c => c.count > 0);
+
+  const chartTotal = catTotals.reduce((s,c)=>s+Math.abs(c.total), 0);
+  let chartSvg = '';
+  if(chartTotal > 0){
+    const cx=90, cy=90, r=70, innerR=42;
+    let cumulative = 0;
+    const slices = catTotals.map(c => {
+      const value = Math.abs(c.total);
+      const startAngle = (cumulative/chartTotal) * 2*Math.PI - Math.PI/2;
+      cumulative += value;
+      const endAngle = (cumulative/chartTotal) * 2*Math.PI - Math.PI/2;
+      const x1 = cx + r*Math.cos(startAngle), y1 = cy + r*Math.sin(startAngle);
+      const x2 = cx + r*Math.cos(endAngle), y2 = cy + r*Math.sin(endAngle);
+      const ix1 = cx + innerR*Math.cos(startAngle), iy1 = cy + innerR*Math.sin(startAngle);
+      const ix2 = cx + innerR*Math.cos(endAngle), iy2 = cy + innerR*Math.sin(endAngle);
+      const largeArc = (endAngle-startAngle) > Math.PI ? 1 : 0;
+      const isSelected = assetSelectedCategory === c.name;
+      const dim = assetSelectedCategory && !isSelected;
+      const d = value >= chartTotal
+        ? `M ${cx-r} ${cy} A ${r} ${r} 0 1 1 ${cx+r} ${cy} A ${r} ${r} 0 1 1 ${cx-r} ${cy} Z`
+        : `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1} Z`;
+      return `<path d="${d}" fill="${c.color}" opacity="${dim ? 0.3 : 1}" stroke="#fff" stroke-width="2" style="cursor:pointer" onclick="selectAssetChartCategory('${c.name}')"/>`;
+    }).join('');
+    chartSvg = `<svg viewBox="0 0 180 180" width="180" height="180">${slices}</svg>`;
+  }
+
+  const legendHtml = catTotals.map(c => {
+    const isSelected = assetSelectedCategory === c.name;
+    return `
+    <div class="asset-legend-row ${isSelected ? 'active' : ''}" onclick="selectAssetChartCategory('${c.name}')">
+      <span class="asset-cat-dot" style="background:${c.color};"></span>
+      <span class="asset-legend-name">${escapeHtml(c.name)}</span>
+      <span class="mono" style="color:${c.total < 0 ? 'var(--stamp-red)' : 'var(--ink)'}">${c.total < 0 ? '-' : ''}${fmt(Math.abs(c.total))}원</span>
+    </div>`;
+  }).join('');
+
+  const selectedCat = catTotals.find(c => c.name === assetSelectedCategory);
+  const detailHtml = selectedCat ? `
+    <div class="breakdown-card" style="margin-top:12px;">
+      <div class="bd-top" style="margin-bottom:10px;">
+        <span class="bd-name" style="color:${selectedCat.color}; font-weight:700;">${escapeHtml(selectedCat.name)}</span>
+        <span class="bd-val mono" style="color:${selectedCat.total < 0 ? 'var(--stamp-red)' : 'var(--ink)'}; font-weight:700;">${selectedCat.total < 0 ? '-' : ''}${fmt(Math.abs(selectedCat.total))}원</span>
+      </div>
+      ${assetItems.filter(it => (it.category||'기타') === selectedCat.name).map(it => `
+        <div class="bd-row" style="margin-bottom:8px;">
+          <div class="bd-top" style="margin-bottom:0;">
+            <span class="bd-name" style="font-size:13px;">${escapeHtml(it.name)}</span>
+            <span class="bd-val mono" style="color:${it.amount<0?'var(--stamp-red)':'var(--ink-faint)'}">${it.amount<0?'-':''}${fmt(Math.abs(it.amount))}원</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
 
   return `
     <div class="cover" style="padding-bottom:24px;">
@@ -1498,10 +1639,21 @@ function renderAssetTab(){
           <span>업데이트</span>
           <input type="date" class="mono" value="${assetUpdatedDate || todayStr()}" onchange="updateAssetDate(this.value)">
         </div>
-        ${rows}
+        ${groupedListHtml}
         <button class="fixed-add-btn" onclick="openAddAssetItemForm()">${icon('plus',14)} 항목 추가</button>
       </div>
     </div>
+
+    ${chartTotal > 0 ? `
+      <div class="breakdown">
+        <p class="section-label" style="margin:0 0 8px;">카테고리별 자산 구성</p>
+        <div class="breakdown-card" style="display:flex; flex-direction:column; align-items:center; gap:14px;">
+          ${chartSvg}
+          <div style="width:100%;">${legendHtml}</div>
+        </div>
+        ${detailHtml}
+      </div>
+    ` : ''}
 
     <div class="overlay ${assetItemFormOpen ? 'open' : ''}" onclick="closeAssetItemForm()">
       <div class="modal" onclick="event.stopPropagation()">
@@ -1511,6 +1663,14 @@ function renderAssetTab(){
         </div>
         <input id="ai-name" type="text" placeholder="항목명 (예: 청약, 주택담보대출)" class="field" value="${escapeHtml(assetItemForm.name)}">
         <input id="ai-amount" type="text" inputmode="text" placeholder="금액 (대출 등은 -로 입력, 예: -50000000)" class="field mono" value="${assetItemForm.amount}">
+        <p class="field-label">분류</p>
+        <div class="cat-grid">
+          ${ASSET_CATEGORIES.map(cat => {
+            const active = assetItemForm.category === cat;
+            const c = assetCategoryColor(cat);
+            return `<div class="cat-opt" style="${active ? `border-color:${c}; color:${c};` : ''}" onclick="selectAssetItemCategory('${cat}')">${escapeHtml(cat)}</div>`;
+          }).join('')}
+        </div>
         <button class="submit-btn" style="background:var(--accent)" onclick="submitAssetItem()">${assetEditingItemId ? '수정하기' : '추가하기'}</button>
       </div>
     </div>
@@ -1539,11 +1699,15 @@ function renderSalaryTab(){
           <div class="fixed-row" onclick="openEditSalaryItemForm('${g.id}','${it.id}')">
             <div class="fixed-main">
               <span class="fixed-name">${escapeHtml(it.name)}</span>
-              ${it.account ? `<p class="fixed-meta mono">${escapeHtml(it.account)}</p>` : ''}
+              ${it.account ? `
+                <p class="fixed-meta mono account-inline">
+                  <span>${escapeHtml(it.account)}</span>
+                  <button class="copy-inline-btn" onclick="event.stopPropagation(); copyToClipboard('${escapeHtml(it.account)}', this)" title="계좌번호 복사">${icon('copy',11)}</button>
+                </p>
+              ` : ''}
             </div>
             <div class="fixed-amt mono">${fmt(it.amount)}원</div>
             <button class="del-btn" onclick="event.stopPropagation(); copyToClipboard('${it.amount}', this)" title="금액 복사">${icon('copy',14)}</button>
-            ${it.account ? `<button class="del-btn" onclick="event.stopPropagation(); copyToClipboard('${escapeHtml(it.account)}', this)" title="계좌번호 복사">${icon('copy',14)}</button>` : ''}
             <button class="del-btn" onclick="event.stopPropagation(); askDeleteSalaryItem('${g.id}','${it.id}')">${icon('trash-2',14)}</button>
           </div>`).join('');
     return `
@@ -1669,17 +1833,24 @@ function render(){
       <div class="breakdown-card">
         ${catBreakdown.map(c=>{
           const pct = monthExpense ? Math.round((c.amount/monthExpense)*100) : 0;
+          const active = selectedCategoryFilter === c.name;
           return `
-          <div class="bd-row">
+          <div class="bd-row payment-row ${active ? 'active' : ''}" onclick="selectCategoryFilter('${c.name}')">
             <div class="bd-top">
               <span class="bd-name">${escapeHtml(c.name)}</span>
               <span class="bd-val mono">${fmt(c.amount)}원 · ${pct}%</span>
             </div>
-            <div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div>
+            <div class="bd-track"><div class="bd-fill" style="width:${pct}%; ${active ? 'background:var(--accent);' : ''}"></div></div>
           </div>`;
         }).join('')}
       </div>
-    </div>`;
+    </div>
+    ${selectedCategoryFilter ? `
+      <div style="padding:0 20px 20px;">
+        <p class="section-label" style="margin:0 0 6px;">${escapeHtml(selectedCategoryFilter)} 지출 내역</p>
+        <div class="ledger">${renderRows(monthEntries.filter(e=>e.type==='expense' && e.category === selectedCategoryFilter), '해당 분류로 기록된 지출이 없습니다.')}</div>
+      </div>
+    ` : ''}`;
 
   const paymentTabHtml = `
     <div class="breakdown">
@@ -1880,6 +2051,7 @@ function render(){
 function changeMonth(delta){
   currentMonth = shiftMonth(currentMonth, delta);
   selectedPaymentMethod = null;
+  selectedCategoryFilter = null;
   render();
 }
 
