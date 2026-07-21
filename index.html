@@ -15,14 +15,15 @@
 <style>
   :root{
     --paper:#FFFFFF;
-    --paper-line:#E3E6EE;
+    --paper-line:#ECEEF3;
     --cover:#1428A0;
     --cover-light:#2F5FDE;
-    --ink:#1B2233;
-    --ink-faint:#6B7280;
+    --ink:#16181D;
+    --ink-faint:#7A7F8A;
     --stamp-red:#A8382C;
     --stamp-green:#2C6E49;
     --accent:#2F5FDE;
+    --card-shadow:0 4px 14px rgba(20,40,80,0.05);
   }
   *{box-sizing:border-box;}
   body{
@@ -74,7 +75,7 @@
 
   /* Summary cards */
   .summary{display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px 20px;}
-  .card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .card{background:#fff; border:1px solid var(--paper-line); border-radius:16px; padding:12px; box-shadow:var(--card-shadow);}
   .card p:first-child{color:var(--ink-faint); font-size:12px; margin:0 0 4px;}
   .card p:last-child{font-size:18px; font-weight:600; margin:0;}
   .card.income p:last-child{color:var(--stamp-green);}
@@ -84,7 +85,7 @@
 
   /* Ledger list */
   .section-label{color:var(--ink-faint); font-size:12px; margin:0 20px 6px; padding-top:4px;}
-  .ledger{background:#fff; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden; margin:0 20px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .ledger{background:#fff; border:1px solid var(--paper-line); border-radius:16px; overflow:hidden; margin:0 20px; box-shadow:var(--card-shadow);}
   .ledger-empty{padding:24px; text-align:center; color:var(--ink-faint); font-size:13px;}
   .ledger-row{display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px dashed var(--paper-line); cursor:pointer;}
   .ledger-row:hover{background:#F5F7FC;}
@@ -108,14 +109,14 @@
   /* Tab bar */
   .tab-bar{display:flex; gap:8px; padding:14px 20px 0;}
   .tab-btn{
-    flex:1; padding:9px; border-radius:9999px; border:1px solid var(--paper-line);
-    background:#fff; color:var(--ink-faint); font-size:13px; font-weight:500; cursor:pointer;
+    flex:1; padding:10px 0; border-radius:12px; border:1px solid var(--paper-line);
+    background:#fff; color:var(--ink-faint); font-size:13.5px; font-weight:500; cursor:pointer;
   }
   .tab-btn.active{background:var(--cover); border-color:var(--cover); color:#FFFFFF; font-weight:700;}
 
   /* Category breakdown */
   .breakdown{padding:20px;}
-  .breakdown-card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .breakdown-card{background:#fff; border:1px solid var(--paper-line); border-radius:16px; padding:16px; box-shadow:var(--card-shadow);}
   .bd-row{margin-bottom:12px;}
   .bd-row:last-child{margin-bottom:0;}
   .bd-top{display:flex; justify-content:space-between; margin-bottom:4px;}
@@ -185,7 +186,7 @@
   .loading{display:flex; align-items:center; justify-content:center; min-height:100vh; color:var(--ink-faint); font-size:14px;}
 
   /* Fixed expenses (고정비) */
-  .fixed-card{background:#fff; border:1px solid var(--paper-line); border-radius:10px; overflow:hidden; margin-bottom:16px; box-shadow:0 1px 3px rgba(16,24,64,0.04);}
+  .fixed-card{background:#fff; border:1px solid var(--paper-line); border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--card-shadow);}
   .fixed-card-head{display:flex; justify-content:space-between; align-items:flex-start; padding:14px 16px; border-bottom:1px solid var(--paper-line); background:#F5F7FC;}
   .fg-name{font-size:14px; font-weight:700; color:var(--ink); margin:0;}
   .fg-count{font-size:11px; color:var(--ink-faint); margin:2px 0 0;}
@@ -269,7 +270,7 @@
   .asset-legend-name{flex:1; min-width:0; color:var(--ink);}
 
   .add-group-btn{
-    width:100%; padding:12px; background:#fff; border:1px dashed var(--paper-line); border-radius:10px;
+    width:100%; padding:12px; background:#fff; border:1px dashed var(--paper-line); border-radius:16px;
     color:var(--ink-faint); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
   }
   .prepaid-row{display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer; font-size:13px; color:var(--ink);}
