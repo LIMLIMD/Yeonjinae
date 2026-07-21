@@ -221,6 +221,26 @@
     border-bottom:1px solid var(--paper-line); font-size:12px; color:var(--ink-faint); background:#F5F7FC;
   }
   .asset-date-row input{border:1px solid var(--paper-line); border-radius:6px; padding:4px 8px; font-size:12px; color:var(--ink); font-family:inherit;}
+  .asset-save-btn{
+    display:flex; align-items:center; gap:4px; border:none; border-radius:6px; padding:5px 10px;
+    background:var(--accent); color:#fff; font-size:11px; font-weight:700; cursor:pointer;
+  }
+  .asset-save-btn:active{opacity:0.85;}
+
+  /* Asset bar chart */
+  .asset-chart-scroll{overflow-x:auto; padding-bottom:4px;}
+  .asset-bar-row{display:flex; align-items:flex-end; gap:14px; min-height:210px; padding:4px 6px 0;}
+  .asset-bar-col{display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; width:34px;}
+  .asset-bar-total-label{font-size:9px; color:var(--ink-faint); white-space:nowrap;}
+  .asset-bar-stack{
+    width:22px; border-radius:4px 4px 0 0; overflow:hidden;
+    display:flex; flex-direction:column-reverse; background:var(--paper-line);
+  }
+  .asset-bar-stack > div{width:100%;}
+  .asset-bar-debt-label{font-size:9px; color:var(--stamp-red); white-space:nowrap;}
+  .asset-bar-date{font-size:10px; color:var(--ink-faint); white-space:nowrap;}
+  .asset-chart-legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--paper-line);}
+  .asset-chart-legend .asset-legend-row{padding:0; font-size:12px;}
 
   /* Asset categories & reorder */
   .asset-cat-group{border-bottom:1px solid var(--paper-line);}
@@ -481,10 +501,10 @@ function assetCategoryColor(name){
 }
 let assetItems = [];
 let assetUpdatedDate = '';
+let assetHistory = []; // [{id, date, total, byCategory:{...}}]
 let assetItemFormOpen = false;
 let assetItemForm = {name:'', amount:'', category:'기타'};
 let assetEditingItemId = null;
-let assetSelectedCategory = null; // for the pie-chart detail panel
 let assetConfirmDelete = null; // itemId
 
 // --- Salary management (월급 관리) state ---
@@ -711,6 +731,23 @@ async function persistAssetDate(){
     showError('저장에 실패했습니다. 다시 시도해 주세요.');
   }
 }
+async function loadAssetHistory(){
+  try{
+    const res = await storageGet('asset-history');
+    if(res && res.value){
+      assetHistory = JSON.parse(res.value);
+    }
+  }catch(e){
+    // no data yet
+  }
+}
+async function persistAssetHistory(){
+  try{
+    await storageSet('asset-history', JSON.stringify(assetHistory));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
 async function loadSalaryGroups(){
   try{
     const res = await storageGet('salary-groups');
@@ -911,11 +948,23 @@ async function doDelete(){
   render();
 }
 
+function syncLedgerFormFields(){
+  const dateEl = document.getElementById('f-date');
+  const timeEl = document.getElementById('f-time');
+  const amountEl = document.getElementById('f-amount');
+  const memoEl = document.getElementById('f-memo');
+  if(dateEl) form.date = dateEl.value;
+  if(timeEl) form.time = timeEl.value;
+  if(amountEl) form.amount = amountEl.value;
+  if(memoEl) form.memo = memoEl.value;
+}
 function selectCategory(name){
+  syncLedgerFormFields();
   form.category = name;
   render();
 }
 function selectPayment(name){
+  syncLedgerFormFields();
   form.payment = name;
   render();
 }
@@ -1084,6 +1133,14 @@ function closeItemForm(){
   render();
 }
 function toggleFixedFormPrepaid(){
+  const nameEl = document.getElementById('fi-name');
+  const dayEl = document.getElementById('fi-day');
+  const paymentEl = document.getElementById('fi-payment');
+  const amountEl = document.getElementById('fi-amount');
+  if(nameEl) fixedItemForm.name = nameEl.value;
+  if(dayEl) fixedItemForm.day = dayEl.value;
+  if(paymentEl) fixedItemForm.payment = paymentEl.value;
+  if(amountEl) fixedItemForm.amount = amountEl.value;
   fixedItemForm.prepaid = !fixedItemForm.prepaid;
   render();
 }
@@ -1170,6 +1227,10 @@ function closeAssetItemForm(){
   render();
 }
 function selectAssetItemCategory(name){
+  const nameEl = document.getElementById('ai-name');
+  const amountEl = document.getElementById('ai-amount');
+  if(nameEl) assetItemForm.name = nameEl.value;
+  if(amountEl) assetItemForm.amount = amountEl.value;
   assetItemForm.category = name;
   render();
 }
@@ -1213,10 +1274,6 @@ async function moveAssetItem(itemId, direction){
   await persistAssetItems();
   render();
 }
-function selectAssetChartCategory(name){
-  assetSelectedCategory = (assetSelectedCategory === name) ? null : name;
-  render();
-}
 function askDeleteAssetItem(itemId){
   assetConfirmDelete = itemId;
   render();
@@ -1234,6 +1291,23 @@ async function doDeleteAssetItem(){
 async function updateAssetDate(dateValue){
   assetUpdatedDate = dateValue || todayStr();
   await persistAssetDate();
+  render();
+}
+async function saveAssetSnapshot(){
+  const dateInput = document.getElementById('asset-date-input');
+  const date = (dateInput && dateInput.value) || assetUpdatedDate || todayStr();
+  assetUpdatedDate = date;
+  const byCategory = {};
+  ASSET_CATEGORIES.forEach(cat => {
+    byCategory[cat] = assetItems.filter(it => (it.category || '기타') === cat).reduce((s,it)=>s+it.amount, 0);
+  });
+  const total = assetItems.reduce((s,it)=>s+it.amount, 0);
+  const idx = assetHistory.findIndex(h => h.date === date);
+  const snapshot = {id: idx !== -1 ? assetHistory[idx].id : 'ah-'+Date.now(), date, total, byCategory};
+  if(idx !== -1) assetHistory[idx] = snapshot;
+  else assetHistory.push(snapshot);
+  await persistAssetDate();
+  await persistAssetHistory();
   render();
 }
 
@@ -1580,66 +1654,36 @@ function renderAssetTab(){
         </div>`;
       }).join('');
 
-  // --- category totals for the donut chart ---
-  const catTotals = ASSET_CATEGORIES.map(cat => ({
-    name: cat,
-    color: assetCategoryColor(cat),
-    total: assetItems.filter(it => (it.category || '기타') === cat).reduce((s,it)=>s+it.amount,0),
-    count: assetItems.filter(it => (it.category || '기타') === cat).length,
-  })).filter(c => c.count > 0);
-
-  const chartTotal = catTotals.reduce((s,c)=>s+Math.abs(c.total), 0);
-  let chartSvg = '';
-  if(chartTotal > 0){
-    const cx=90, cy=90, r=70, innerR=42;
-    let cumulative = 0;
-    const slices = catTotals.map(c => {
-      const value = Math.abs(c.total);
-      const startAngle = (cumulative/chartTotal) * 2*Math.PI - Math.PI/2;
-      cumulative += value;
-      const endAngle = (cumulative/chartTotal) * 2*Math.PI - Math.PI/2;
-      const x1 = cx + r*Math.cos(startAngle), y1 = cy + r*Math.sin(startAngle);
-      const x2 = cx + r*Math.cos(endAngle), y2 = cy + r*Math.sin(endAngle);
-      const ix1 = cx + innerR*Math.cos(startAngle), iy1 = cy + innerR*Math.sin(startAngle);
-      const ix2 = cx + innerR*Math.cos(endAngle), iy2 = cy + innerR*Math.sin(endAngle);
-      const largeArc = (endAngle-startAngle) > Math.PI ? 1 : 0;
-      const isSelected = assetSelectedCategory === c.name;
-      const dim = assetSelectedCategory && !isSelected;
-      const d = value >= chartTotal
-        ? `M ${cx-r} ${cy} A ${r} ${r} 0 1 1 ${cx+r} ${cy} A ${r} ${r} 0 1 1 ${cx-r} ${cy} Z`
-        : `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1} Z`;
-      return `<path d="${d}" fill="${c.color}" opacity="${dim ? 0.3 : 1}" stroke="#fff" stroke-width="2" style="cursor:pointer" onclick="selectAssetChartCategory('${c.name}')"/>`;
-    }).join('');
-    chartSvg = `<svg viewBox="0 0 180 180" width="180" height="180">${slices}</svg>`;
-  }
-
-  const legendHtml = catTotals.map(c => {
-    const isSelected = assetSelectedCategory === c.name;
+  const history = [...assetHistory].sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+  const maxNet = Math.max(1, ...history.map(h => h.total));
+  const barMaxPx = 160;
+  const barsHtml = history.map(h => {
+    const positiveCats = ASSET_CATEGORIES.filter(c => c !== '대출' && (h.byCategory[c] || 0) > 0);
+    const positiveSum = positiveCats.reduce((s,c)=> s + (h.byCategory[c] || 0), 0);
+    const debtAmount = h.byCategory['대출'] || 0;
+    const barPx = h.total > 0 ? Math.max(4, Math.round((h.total / maxNet) * barMaxPx)) : 4;
+    const segmentsHtml = h.total > 0 && positiveSum > 0
+      ? positiveCats.map(c => {
+          const share = (h.byCategory[c] || 0) / positiveSum;
+          const segPx = Math.round(share * barPx);
+          return `<div style="height:${segPx}px; background:${assetCategoryColor(c)};" title="${escapeHtml(c)}"></div>`;
+        }).join('')
+      : `<div style="height:${barPx}px; background:var(--paper-line);"></div>`;
+    const [y,m,d] = h.date.split('-');
     return `
-    <div class="asset-legend-row ${isSelected ? 'active' : ''}" onclick="selectAssetChartCategory('${c.name}')">
-      <span class="asset-cat-dot" style="background:${c.color};"></span>
-      <span class="asset-legend-name">${escapeHtml(c.name)}</span>
-      <span class="mono" style="color:${c.total < 0 ? 'var(--stamp-red)' : 'var(--ink)'}">${c.total < 0 ? '-' : ''}${fmt(Math.abs(c.total))}원</span>
-    </div>`;
+      <div class="asset-bar-col">
+        <p class="asset-bar-total-label mono">${fmt(h.total)}</p>
+        <div class="asset-bar-stack" style="height:${barPx}px;">${segmentsHtml}</div>
+        ${debtAmount < 0 ? `<p class="asset-bar-debt-label mono">-${fmt(Math.abs(debtAmount))}</p>` : ''}
+        <p class="asset-bar-date">${m}/${d}</p>
+      </div>`;
   }).join('');
 
-  const selectedCat = catTotals.find(c => c.name === assetSelectedCategory);
-  const detailHtml = selectedCat ? `
-    <div class="breakdown-card" style="margin-top:12px;">
-      <div class="bd-top" style="margin-bottom:10px;">
-        <span class="bd-name" style="color:${selectedCat.color}; font-weight:700;">${escapeHtml(selectedCat.name)}</span>
-        <span class="bd-val mono" style="color:${selectedCat.total < 0 ? 'var(--stamp-red)' : 'var(--ink)'}; font-weight:700;">${selectedCat.total < 0 ? '-' : ''}${fmt(Math.abs(selectedCat.total))}원</span>
-      </div>
-      ${assetItems.filter(it => (it.category||'기타') === selectedCat.name).map(it => `
-        <div class="bd-row" style="margin-bottom:8px;">
-          <div class="bd-top" style="margin-bottom:0;">
-            <span class="bd-name" style="font-size:13px;">${escapeHtml(it.name)}</span>
-            <span class="bd-val mono" style="color:${it.amount<0?'var(--stamp-red)':'var(--ink-faint)'}">${it.amount<0?'-':''}${fmt(Math.abs(it.amount))}원</span>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  ` : '';
+  const chartLegendHtml = ASSET_CATEGORIES.filter(c=>c!=='대출').map(c => `
+    <div class="asset-legend-row" style="cursor:default;">
+      <span class="asset-cat-dot" style="background:${assetCategoryColor(c)};"></span>
+      <span class="asset-legend-name">${escapeHtml(c)}</span>
+    </div>`).join('');
 
   return `
     <div class="cover" style="padding-bottom:24px;">
@@ -1656,21 +1700,25 @@ function renderAssetTab(){
       <div class="fixed-card">
         <div class="asset-date-row">
           <span>업데이트</span>
-          <input type="date" class="mono" value="${assetUpdatedDate || todayStr()}" onchange="updateAssetDate(this.value)">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input id="asset-date-input" type="date" class="mono" value="${assetUpdatedDate || todayStr()}" onchange="updateAssetDate(this.value)">
+            <button class="asset-save-btn" onclick="saveAssetSnapshot()">${icon('check',13)} 저장하기</button>
+          </div>
         </div>
         ${groupedListHtml}
         <button class="fixed-add-btn" onclick="openAddAssetItemForm()">${icon('plus',14)} 항목 추가</button>
       </div>
     </div>
 
-    ${chartTotal > 0 ? `
+    ${history.length > 0 ? `
       <div class="breakdown">
-        <p class="section-label" style="margin:0 0 8px;">카테고리별 자산 구성</p>
-        <div class="breakdown-card" style="display:flex; flex-direction:column; align-items:center; gap:14px;">
-          ${chartSvg}
-          <div style="width:100%;">${legendHtml}</div>
+        <p class="section-label" style="margin:0 0 8px;">자산 증감 그래프</p>
+        <div class="breakdown-card">
+          <div class="asset-chart-scroll">
+            <div class="asset-bar-row">${barsHtml}</div>
+          </div>
+          <div class="asset-chart-legend">${chartLegendHtml}</div>
         </div>
-        ${detailHtml}
       </div>
     ` : ''}
 
@@ -2085,6 +2133,7 @@ function escapeHtml(str){
   await loadFixedGroups();
   await loadFixedActiveGroup();
   await loadAssets();
+  await loadAssetHistory();
   await loadSalaryGroups();
   await loadCategories();
   await loadPaymentMethods();
