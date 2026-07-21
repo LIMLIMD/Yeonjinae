@@ -165,7 +165,7 @@
   .overlay{position:fixed; inset:0; background:rgba(10,15,40,0.45); z-index:50; display:none; align-items:flex-end; justify-content:center;}
   .overlay.open{display:flex;}
   .overlay.center{align-items:center; padding:0 32px;}
-  .modal{width:100%; max-width:480px; background:var(--paper); border-top-left-radius:22px; border-top-right-radius:22px; padding:20px 20px 28px;}
+  .modal{width:100%; max-width:480px; background:var(--paper); border-top-left-radius:22px; border-top-right-radius:22px; padding:20px 20px 28px; -webkit-overflow-scrolling:touch;}
   .modal:not(.modal-confirm)::before{content:''; display:block; width:40px; height:4px; background:#E4E6EB; border-radius:2px; margin:0 auto 16px;}
   .modal-confirm{max-width:360px; background:#fff; border-radius:16px; padding:20px;}
   .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
@@ -313,6 +313,7 @@
   .settings-header button{background:none; border:none; color:var(--ink); cursor:pointer; display:flex;}
   .settings-header h2{font-size:16px; font-weight:800; margin:0; color:var(--ink);}
   .settings-list{overflow-y:visible; margin-bottom:12px;}
+  .fixed-check-list{margin-bottom:12px;}
   .fixed-check-row{
     display:grid; grid-template-columns:18px 1fr 72px 88px; align-items:center; gap:8px;
     padding:8px 0; border-bottom:1px dashed var(--paper-line);
@@ -1955,7 +1956,7 @@ function renderSalaryTab(){
         <input id="si-account" type="text" inputmode="text" placeholder="계좌번호 (선택)" class="field mono" value="${escapeHtml(salaryItemForm.account || '')}">
         ${matchedFixedGroup && matchedFixedGroup.items.length ? `
           <p class="field-label">고정비에서 합산해서 가져오기 (선택, 여러 개 체크 가능)</p>
-          <div class="settings-list" style="max-height:200px;">
+          <div class="fixed-check-list">
             ${matchedFixedGroup.items.map(fi => {
               return `
               <label class="fixed-check-row">
@@ -2024,13 +2025,14 @@ function render(){
         ${catBreakdown.map(c=>{
           const pct = monthExpense ? Math.round((c.amount/monthExpense)*100) : 0;
           const active = selectedCategoryFilter === c.name;
+          const barColor = catBadgeColor('expense', c.name);
           return `
           <div class="bd-row bd-row-clickable ${active ? 'active' : ''}" onclick="selectCategoryFilter('${c.name}')">
             <div class="bd-top">
               <span class="bd-name">${escapeHtml(c.name)}</span>
               <span class="bd-val mono">${fmt(c.amount)}원 · ${pct}%</span>
             </div>
-            <div class="bd-track"><div class="bd-fill" style="width:${pct}%; ${active ? 'background:var(--accent);' : ''}"></div></div>
+            <div class="bd-track"><div class="bd-fill" style="width:${pct}%; background:${barColor};"></div></div>
           </div>`;
         }).join('')}
       </div>
