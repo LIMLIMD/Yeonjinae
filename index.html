@@ -124,6 +124,9 @@
   .bd-track{background:var(--paper-line); height:6px; border-radius:3px; overflow:hidden;}
   .bd-fill{background:var(--stamp-red); height:100%;}
   .payment-row{display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:6px; margin:-6px -6px 6px; border-radius:8px;}
+  .bd-row-clickable{cursor:pointer; padding:6px; margin:-6px -6px 6px; border-radius:8px;}
+  .bd-row-clickable:hover{background:#F5F7FC;}
+  .bd-row-clickable.active{background:#EAF0FE;}
   .payment-row:hover{background:#F5F7FC;}
   .payment-row.active{background:#EAF0FE;}
   .pay-icon{color:var(--stamp-red); flex-shrink:0; margin-top:2px;}
@@ -168,6 +171,12 @@
   .field-row .field{flex:1; min-width:0;}
   .field-label{color:var(--ink-faint); font-size:12px; margin:0 0 6px;}
   .submit-btn{width:100%; padding:14px; border:none; border-radius:9999px; font-size:15px; font-weight:700; color:#fff; cursor:pointer;}
+  .delete-below-btn{
+    width:100%; padding:12px; margin-top:10px; border:none; background:none; border-radius:9999px;
+    font-size:13px; font-weight:600; color:var(--stamp-red); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .delete-below-btn:active{background:#FDECEA;}
   .confirm-text{font-size:14px; margin:0 0 16px;}
   .confirm-actions{display:flex; gap:8px;}
   .confirm-actions button{flex:1; padding:10px; border-radius:8px; font-size:13px; cursor:pointer;}
@@ -217,13 +226,19 @@
   .asset-cat-group{border-bottom:1px solid var(--paper-line);}
   .asset-cat-group:last-of-type{border-bottom:none;}
   .asset-cat-header{
-    display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:12px; font-weight:700;
     padding:10px 16px 4px; margin:0;
   }
+  .asset-cat-name{display:flex; align-items:center; gap:6px;}
   .asset-cat-dot{width:8px; height:8px; border-radius:9999px; flex-shrink:0;}
-  .asset-reorder{display:flex; flex-direction:column; gap:0; flex-shrink:0;}
-  .asset-reorder button{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:0; line-height:0;}
-  .asset-reorder button:disabled{opacity:0.2; cursor:default;}
+  .asset-reorder{display:flex; flex-direction:column; gap:2px; flex-shrink:0;}
+  .asset-reorder button{
+    background:#F5F7FC; border:none; color:var(--ink-faint); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    width:30px; height:26px; border-radius:6px; padding:0;
+  }
+  .asset-reorder button:active{background:#E4E8F0;}
+  .asset-reorder button:disabled{opacity:0.2; cursor:default; background:transparent;}
   .asset-legend-row{
     display:flex; align-items:center; gap:8px; padding:6px 4px; border-radius:6px; cursor:pointer; font-size:13px;
   }
@@ -1368,6 +1383,8 @@ async function doDeleteSalaryItem(){
   if(g) g.items = g.items.filter(x => x.id !== itemId);
   await persistSalary();
   salaryConfirmDelete = null;
+  salaryItemFormOpen = false;
+  salaryEditingItemId = null;
   render();
 }
 
@@ -1536,8 +1553,8 @@ function renderAssetTab(){
     return `
     <div class="fixed-row" onclick="openEditAssetItemForm('${it.id}')">
       <div class="asset-reorder" onclick="event.stopPropagation()">
-        <button ${idxInCat === 0 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', -1)">${icon('chevron-up',12)}</button>
-        <button ${idxInCat === catItemsLen-1 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', 1)">${icon('chevron-down',12)}</button>
+        <button ${idxInCat === 0 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', -1)">${icon('chevron-up',15)}</button>
+        <button ${idxInCat === catItemsLen-1 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', 1)">${icon('chevron-down',15)}</button>
       </div>
       <div class="fixed-main">
         <span class="fixed-name">${escapeHtml(it.name)}</span>
@@ -1552,10 +1569,12 @@ function renderAssetTab(){
     : ASSET_CATEGORIES.filter(cat => assetItems.some(it => (it.category || '기타') === cat)).map(cat => {
         const catItems = assetItems.filter(it => (it.category || '기타') === cat);
         const catColor = assetCategoryColor(cat);
+        const catSum = catItems.reduce((s,it)=>s+it.amount, 0);
         return `
         <div class="asset-cat-group">
           <p class="asset-cat-header" style="color:${catColor};">
-            <span class="asset-cat-dot" style="background:${catColor};"></span>${escapeHtml(cat)}
+            <span class="asset-cat-name"><span class="asset-cat-dot" style="background:${catColor};"></span>${escapeHtml(cat)}</span>
+            <span class="mono" style="color:${catSum < 0 ? 'var(--stamp-red)' : 'var(--ink)'};">${catSum < 0 ? '-' : ''}${fmt(Math.abs(catSum))}원</span>
           </p>
           ${catItems.map((it,i)=>renderItemRow(it, i, catItems.length)).join('')}
         </div>`;
@@ -1708,7 +1727,6 @@ function renderSalaryTab(){
             </div>
             <div class="fixed-amt mono">${fmt(it.amount)}원</div>
             <button class="del-btn" onclick="event.stopPropagation(); copyToClipboard('${it.amount}', this)" title="금액 복사">${icon('copy',14)}</button>
-            <button class="del-btn" onclick="event.stopPropagation(); askDeleteSalaryItem('${g.id}','${it.id}')">${icon('trash-2',14)}</button>
           </div>`).join('');
     return `
       <div class="fixed-card">
@@ -1785,6 +1803,7 @@ function renderSalaryTab(){
           <span id="salary-total-value" class="mono">${(parseInt(salaryItemForm.amount,10)||0) < 0 ? '-' : ''}${fmt(Math.abs(parseInt(salaryItemForm.amount,10)||0))}원</span>
         </div>
         <button class="submit-btn" style="background:var(--accent)" onclick="submitSalaryItem()">${salaryEditingItemId ? '수정하기' : '추가하기'}</button>
+        ${salaryEditingItemId ? `<button class="delete-below-btn" onclick="askDeleteSalaryItem('${salaryItemForm.groupId}', '${salaryEditingItemId}')">${icon('trash-2',14)} 삭제하기</button>` : ''}
       </div>
     </div>
 
@@ -1835,7 +1854,7 @@ function render(){
           const pct = monthExpense ? Math.round((c.amount/monthExpense)*100) : 0;
           const active = selectedCategoryFilter === c.name;
           return `
-          <div class="bd-row payment-row ${active ? 'active' : ''}" onclick="selectCategoryFilter('${c.name}')">
+          <div class="bd-row bd-row-clickable ${active ? 'active' : ''}" onclick="selectCategoryFilter('${c.name}')">
             <div class="bd-top">
               <span class="bd-name">${escapeHtml(c.name)}</span>
               <span class="bd-val mono">${fmt(c.amount)}원 · ${pct}%</span>
