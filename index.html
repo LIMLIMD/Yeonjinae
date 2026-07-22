@@ -67,7 +67,7 @@
   }
   .cover .ring1{position:absolute; width:170px; height:170px; border-radius:9999px; background:rgba(255,255,255,0.08); top:-70px; right:-50px; border:none;}
   .cover .ring2{display:none;}
-  .settings-btn{position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.18); border-radius:10px; border:none; cursor:pointer; padding:8px; display:flex;}
+  .settings-btn{position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.18); border-radius:10px; border:none; cursor:pointer; padding:8px; display:flex; z-index:2;}
   .eyebrow{color:rgba(255,255,255,0.65); letter-spacing:0.3em; font-size:11px; position:relative;}
   .cover h1{color:#FFFFFF; font-size:20px; font-weight:800; margin:0; position:relative;}
   .balance-label{color:rgba(255,255,255,0.75); font-size:13px; margin:0 0 4px; position:relative;}
@@ -515,6 +515,12 @@ let settingsOpen = false;
 let settingsTab = "category"; // 'category' | 'payment'
 let deleteCategoryTarget = null;
 let deletePaymentTarget = null;
+let fixedSettingsOpen = false;
+let fixedPaymentMethods = [];
+let deleteFixedPaymentTarget = null;
+function getDefaultFixedPaymentMethods(){
+  return ["현금", "현대카드", "하나카드", "삼성카드", "신한은행", "하나은행", "토스뱅크"];
+}
 
 // --- Fixed expenses (고정비) state ---
 let fixedGroups = [];
@@ -912,6 +918,26 @@ async function loadPaymentMethods(){
   paymentMethods = getDefaultPaymentMethods();
   await persistPaymentMethods();
 }
+async function loadFixedPaymentMethods(){
+  try{
+    const res = await storageGet('fixed-payment-methods');
+    if(res && res.value){
+      fixedPaymentMethods = JSON.parse(res.value);
+      return;
+    }
+  }catch(e){
+    // no data yet
+  }
+  fixedPaymentMethods = getDefaultFixedPaymentMethods();
+  await persistFixedPaymentMethods();
+}
+async function persistFixedPaymentMethods(){
+  try{
+    await storageSet('fixed-payment-methods', JSON.stringify(fixedPaymentMethods));
+  }catch(e){
+    showError('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
 async function persistPaymentMethods(){
   try{
     await storageSet('payment-methods', JSON.stringify(paymentMethods));
@@ -1164,6 +1190,49 @@ async function doDeletePayment(){
   paymentMethods = paymentMethods.filter(p => p !== deletePaymentTarget);
   await persistPaymentMethods();
   deletePaymentTarget = null;
+  render();
+}
+
+function openFixedSettings(){
+  fixedSettingsOpen = true;
+  render();
+}
+function closeFixedSettings(){
+  fixedSettingsOpen = false;
+  render();
+}
+async function addFixedPaymentMethod(){
+  const name = document.getElementById('new-fixed-pay-name').value.trim();
+  if(!name){ showError('지불 수단 이름을 입력해 주세요.'); return; }
+  if(fixedPaymentMethods.includes(name)){ showError('이미 있는 지불 수단이에요.'); return; }
+  fixedPaymentMethods.push(name);
+  await persistFixedPaymentMethods();
+  render();
+}
+async function renameFixedPaymentMethod(oldName, newNameRaw){
+  const newName = (newNameRaw || '').trim();
+  if(!newName || newName === oldName){ render(); return; }
+  if(fixedPaymentMethods.includes(newName)){ showError('이미 있는 지불 수단이에요.'); render(); return; }
+  const idx = fixedPaymentMethods.indexOf(oldName);
+  if(idx === -1){ render(); return; }
+  fixedPaymentMethods[idx] = newName;
+  fixedGroups.forEach(g => g.items.forEach(it => { if(it.payment === oldName) it.payment = newName; }));
+  await persistFixedPaymentMethods();
+  await persistFixed();
+  render();
+}
+function askDeleteFixedPayment(name){
+  deleteFixedPaymentTarget = name;
+  render();
+}
+function cancelDeleteFixedPayment(){
+  deleteFixedPaymentTarget = null;
+  render();
+}
+async function doDeleteFixedPayment(){
+  fixedPaymentMethods = fixedPaymentMethods.filter(p => p !== deleteFixedPaymentTarget);
+  await persistFixedPaymentMethods();
+  deleteFixedPaymentTarget = null;
   render();
 }
 
@@ -1664,6 +1733,7 @@ function renderFixedTab(){
   return `
     <div class="cover cover-title-style">
       <div class="ring1"></div>
+      <button class="settings-btn" onclick="openFixedSettings()">${icon('settings',18,'#FFFFFF')}</button>
       <h1 class="serif">고정비</h1>
       <p class="cover-subtitle">매달 나가는 고정 지출을 관리하세요</p>
     </div>
@@ -1688,7 +1758,7 @@ function renderFixedTab(){
           <input id="fi-payment" placeholder="지출수단 (직접 입력 가능)" class="field" value="${escapeHtml(fixedItemForm.payment)}">
         </div>
         <div class="pay-grid" style="margin-bottom:14px;">
-          ${Array.from(new Set([...paymentMethods, '신한은행','하나은행','토스뱅크'])).map(p => {
+          ${fixedPaymentMethods.map(p => {
             return `<div class="pay-opt" style="${paymentChipStyle(p, false)}" onclick="selectFixedPayment('${p}')">${escapeHtml(p)}</div>`;
           }).join('')}
         </div>
@@ -1728,6 +1798,40 @@ function renderFixedTab(){
         <div class="confirm-actions">
           <button class="btn-cancel" onclick="cancelDeleteGroup()">취소</button>
           <button class="btn-delete" onclick="doDeleteGroup()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay settings-overlay ${fixedSettingsOpen ? 'open' : ''}">
+      <div class="settings-screen">
+        <div class="settings-header">
+          <button onclick="closeFixedSettings()">${icon('chevron-left',22)}</button>
+          <h2>지불 수단 관리</h2>
+        </div>
+        <div style="padding:20px;">
+          <div class="settings-list">
+            ${fixedPaymentMethods.map(p => `
+              <div class="settings-row">
+                <span class="asset-cat-dot" style="background:${paymentColor(p)};"></span>
+                <input type="text" class="settings-name-input" value="${escapeHtml(p)}" onchange="renameFixedPaymentMethod('${escapeHtml(p)}', this.value)">
+                <button class="settings-icon-btn" onclick="askDeleteFixedPayment('${escapeHtml(p)}')">삭제</button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="add-row">
+            <input id="new-fixed-pay-name" type="text" class="field" placeholder="새 지불 수단 이름 (카드/은행 등)">
+            <button onclick="addFixedPaymentMethod()">추가</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay center ${deleteFixedPaymentTarget ? 'open' : ''}" onclick="cancelDeleteFixedPayment()">
+      <div class="modal modal-confirm" onclick="event.stopPropagation()">
+        <p class="confirm-text">'${deleteFixedPaymentTarget ? escapeHtml(deleteFixedPaymentTarget) : ''}' 지불 수단을 삭제할까요? 이미 기록된 항목의 지불 수단은 그대로 남아요.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="cancelDeleteFixedPayment()">취소</button>
+          <button class="btn-delete" onclick="doDeleteFixedPayment()">삭제</button>
         </div>
       </div>
     </div>
@@ -2284,6 +2388,7 @@ function escapeHtml(str){
   await loadSalaryGroups();
   await loadCategories();
   await loadPaymentMethods();
+  await loadFixedPaymentMethods();
   render();
 })();
 </script>
