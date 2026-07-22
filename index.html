@@ -271,12 +271,15 @@
   }
   .asset-cat-tag{font-size:12px; font-weight:700; padding:4px 10px; border-radius:8px;}
   .asset-cat-dot{width:10px; height:10px; border-radius:9999px; flex-shrink:0;}
-  .asset-reorder{display:flex; flex-direction:column; gap:2px; flex-shrink:0;}
+  .asset-reorder{display:flex; flex-direction:column; gap:1px; flex-shrink:0;}
   .asset-reorder button{
     background:#F5F7FC; border:none; color:var(--ink-faint); cursor:pointer;
     display:flex; align-items:center; justify-content:center;
-    width:30px; height:26px; border-radius:6px; padding:0;
+    width:24px; height:17px; border-radius:5px; padding:0;
   }
+  .asset-item-row{padding:8px 12px;}
+  .asset-item-row .fixed-name{font-size:13px;}
+  .asset-item-row .fixed-amt{font-size:13px;}
   .asset-reorder button:active{background:#E4E8F0;}
   .asset-reorder button:disabled{opacity:0.2; cursor:default; background:transparent;}
   .asset-legend-row{
@@ -393,6 +396,7 @@ const ICONS = {
   "wallet": '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
   "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
   "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  "minus": '<path d="M5 12h14"/>',
   "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   "chevron-left": '<path d="m15 18-6-6 6-6"/>',
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
@@ -664,6 +668,11 @@ function currentTimeStr(){
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function fmt(n){ return Math.round(n).toLocaleString('ko-KR'); }
+function fmtEok(n){
+  const sign = n < 0 ? '-' : '';
+  const eok = Math.abs(n) / 100000000;
+  return `${sign}${eok.toFixed(2)}억`;
+}
 function monthKey(dateStr){ return dateStr.slice(0,7); }
 function monthLabel(key){
   const [y,m] = key.split('-');
@@ -806,13 +815,8 @@ async function loadAssets(){
       // no legacy data either
     }
   }
-  try{
-    const res2 = await storageGet('asset-date');
-    if(res2 && res2.value) assetUpdatedDate = JSON.parse(res2.value);
-  }catch(e){
-    // no data yet
-  }
-  if(!assetUpdatedDate) assetUpdatedDate = todayStr();
+  // Snapshot date always starts on today's date rather than the last-saved date.
+  assetUpdatedDate = todayStr();
 }
 async function persistAssetItems(){
   try{
@@ -1730,10 +1734,10 @@ function renderAssetTab(){
   function renderItemRow(it, idxInCat, catItemsLen){
     const isNeg = it.amount < 0;
     return `
-    <div class="fixed-row fixed-row-card" onclick="openEditAssetItemForm('${it.id}')">
+    <div class="fixed-row fixed-row-card asset-item-row" onclick="openEditAssetItemForm('${it.id}')">
       <div class="asset-reorder" onclick="event.stopPropagation()">
-        <button ${idxInCat === 0 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', -1)">${icon('chevron-up',15)}</button>
-        <button ${idxInCat === catItemsLen-1 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', 1)">${icon('chevron-down',15)}</button>
+        <button ${idxInCat === 0 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', -1)">${icon('chevron-up',11)}</button>
+        <button ${idxInCat === catItemsLen-1 ? 'disabled' : ''} onclick="moveAssetItem('${it.id}', 1)">${icon('chevron-down',11)}</button>
       </div>
       <div class="fixed-main">
         <span class="fixed-name">${escapeHtml(it.name)}</span>
@@ -1777,9 +1781,9 @@ function renderAssetTab(){
     const isSelected = selectedAssetSnapshotId === h.id;
     return `
       <div class="asset-bar-col ${isSelected ? 'selected' : ''}" onclick="selectAssetSnapshot('${h.id}')">
-        <p class="asset-bar-total-label mono">${fmt(h.total)}</p>
+        <p class="asset-bar-total-label mono">${fmtEok(h.total)}</p>
         <div class="asset-bar-stack" style="height:${barPx}px;">${segmentsHtml}</div>
-        ${debtAmount < 0 ? `<p class="asset-bar-debt-label mono">-${fmt(Math.abs(debtAmount))}</p>` : ''}
+        ${debtAmount < 0 ? `<p class="asset-bar-debt-label mono">${fmtEok(debtAmount)}</p>` : ''}
         <p class="asset-bar-date">${m}/${d}</p>
       </div>`;
   }).join('');
@@ -2016,7 +2020,11 @@ function render(){
   const {monthEntries, monthIncome, monthExpense, totalBalance, catBreakdown, paymentBreakdown} = computeData();
   const activeCats = form.type === 'income' ? INCOME_CATS : expenseCats;
 
-  const rowsHtml = renderRows(monthEntries, '이번 달 기록이 없습니다. 아래 + 버튼으로 첫 기록을 남겨보세요.');
+  const today = todayStr();
+  const pastEntries = monthEntries.filter(e => e.date <= today);
+  const futureEntries = monthEntries.filter(e => e.date > today);
+  const rowsHtml = renderRows(pastEntries, '이번 달 기록이 없습니다. 아래 + 버튼으로 첫 기록을 남겨보세요.');
+  const upcomingRowsHtml = renderRows(futureEntries, '');
 
   const breakdownHtml = catBreakdown.length === 0 ? '' : `
     <div class="breakdown">
@@ -2053,15 +2061,16 @@ function render(){
           : paymentBreakdown.map(p=>{
               const pct = monthExpense ? Math.round((p.amount/monthExpense)*100) : 0;
               const active = selectedPaymentMethod === p.name;
+              const barColor = paymentColor(p.name);
               return `
               <div class="bd-row payment-row ${active ? 'active' : ''}" onclick="selectPaymentFilter('${p.name}')">
-                <div class="pay-icon">${icon(paymentIcon(p.name), 15, active ? 'var(--accent)' : 'var(--stamp-red)')}</div>
+                <div class="pay-icon">${icon(paymentIcon(p.name), 15, barColor)}</div>
                 <div style="flex:1; min-width:0;">
                   <div class="bd-top">
                     <span class="bd-name">${escapeHtml(p.name)}</span>
                     <span class="bd-val mono">${fmt(p.amount)}원 · ${pct}% · ${p.count}건</span>
                   </div>
-                  <div class="bd-track"><div class="bd-fill" style="width:${pct}%; ${active ? 'background:var(--accent);' : ''}"></div></div>
+                  <div class="bd-track"><div class="bd-fill" style="width:${pct}%; background:${barColor};"></div></div>
                 </div>
               </div>`;
             }).join('')}
@@ -2109,6 +2118,10 @@ function render(){
     ${errorMsg ? `<div class="error-box">${escapeHtml(errorMsg)}</div>` : ''}
 
     ${activeTab === 'ledger' ? `
+      ${futureEntries.length > 0 ? `
+        <p class="section-label">예정</p>
+        <div class="ledger" style="margin-bottom:20px;">${upcomingRowsHtml}</div>
+      ` : ''}
       <p class="section-label">거래 내역</p>
       <div class="ledger">${rowsHtml}</div>
       ${breakdownHtml}
@@ -2116,7 +2129,7 @@ function render(){
 
     <div class="fab-wrap">
       <button class="fab-income" onclick="openForm('income')">${icon('plus',14)} 수입</button>
-      <button class="fab-expense" onclick="openForm('expense')">${icon('plus',16)} 지출</button>
+      <button class="fab-expense" onclick="openForm('expense')">${icon('minus',16)} 지출</button>
     </div>
 
     <div class="overlay ${formOpen ? 'open' : ''}" onclick="closeForm()">
