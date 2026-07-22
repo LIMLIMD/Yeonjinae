@@ -1233,6 +1233,10 @@ function closeItemForm(){
   fixedEditingItemId = null;
   render();
 }
+function selectFixedPayment(name){
+  const el = document.getElementById('fi-payment');
+  if(el) el.value = name;
+}
 function toggleFixedFormPrepaid(){
   const nameEl = document.getElementById('fi-name');
   const dayEl = document.getElementById('fi-day');
@@ -1681,11 +1685,13 @@ function renderFixedTab(){
         <input id="fi-name" type="text" placeholder="항목명 (예: 휴대폰 통신비)" class="field" value="${escapeHtml(fixedItemForm.name)}">
         <div class="field-row">
           <input id="fi-day" type="number" min="1" max="31" placeholder="매월 며칠" class="field mono" value="${fixedItemForm.day}">
-          <input id="fi-payment" list="payment-suggestions" placeholder="지출수단" class="field" value="${escapeHtml(fixedItemForm.payment)}">
+          <input id="fi-payment" placeholder="지출수단 (직접 입력 가능)" class="field" value="${escapeHtml(fixedItemForm.payment)}">
         </div>
-        <datalist id="payment-suggestions">
-          ${Array.from(new Set([...paymentMethods, '신한은행','하나은행','토스뱅크'])).map(p=>`<option value="${escapeHtml(p)}">`).join('')}
-        </datalist>
+        <div class="pay-grid" style="margin-bottom:14px;">
+          ${Array.from(new Set([...paymentMethods, '신한은행','하나은행','토스뱅크'])).map(p => {
+            return `<div class="pay-opt" style="${paymentChipStyle(p, false)}" onclick="selectFixedPayment('${p}')">${escapeHtml(p)}</div>`;
+          }).join('')}
+        </div>
         <input id="fi-amount" type="text" inputmode="numeric" placeholder="금액 (원)" class="field mono" value="${fixedItemForm.amount}">
         <div class="prepaid-row" onclick="toggleFixedFormPrepaid()">
           <div class="fixed-checkbox ${fixedItemForm.prepaid ? 'checked' : ''}">${fixedItemForm.prepaid ? icon('check', 13, '#fff') : ''}</div>
